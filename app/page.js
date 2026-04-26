@@ -298,6 +298,7 @@ export default function App() {
   const [dk, setDk] = useState(true);
   const [lang, setLang] = useState("uz");
   const [tab, setTab] = useState("dashboard");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [operators, setOperators] = useState(INITIAL_OPS);
   const [reports, setReports] = useState(INITIAL_REPORTS);
   const [announcements, setAnnouncements] = useState(INITIAL_ANNS);
@@ -502,12 +503,21 @@ export default function App() {
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 4px; }
         input, select, textarea { font-family: inherit; }
+        @media (min-width: 769px) {
+          .sidebar { transform: translateX(0) !important; }
+          .menu-btn { display: none !important; }
+          .overlay { display: none !important; }
+          .main-content { margin-left: 260px !important; }
+        }
       `}</style>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       
-      <div style={{ minHeight: "100vh", background: t.bg, color: t.text, display: "flex" }}>
+      <div style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
+        {/* Mobile overlay */}
+        {menuOpen && <div className="overlay" onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 199 }} />}
+        
         {/* Sidebar */}
-        <div style={{ width: 260, background: t.card, borderRight: `1px solid ${t.border}`, position: "fixed", top: 0, bottom: 0, left: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div className="sidebar" style={{ width: 260, background: t.card, borderRight: `1px solid ${t.border}`, position: "fixed", top: 0, bottom: 0, left: 0, zIndex: 200, display: "flex", flexDirection: "column", overflow: "hidden", transform: menuOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.3s ease" }}>
           <div style={{ padding: "18px 16px", borderBottom: `1px solid ${t.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: t.danger, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff" }}>{user.emoji}</div>
@@ -515,6 +525,7 @@ export default function App() {
                 <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.full_name}</div>
                 <div style={{ fontSize: 11, color: t.sec }}>{isAdmin ? T("admin") : T("operator")}</div>
               </div>
+              <button className="menu-btn" onClick={() => setMenuOpen(false)} style={{ width: 32, height: 32, borderRadius: 8, background: `${t.danger}15`, border: "none", color: t.danger, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
           </div>
           
@@ -522,7 +533,7 @@ export default function App() {
             {tabs.map(item => (
               <button
                 key={item.id}
-                onClick={() => setTab(item.id)}
+                onClick={() => { setTab(item.id); setMenuOpen(false); }}
                 style={{
                   width: "100%", padding: "10px 12px", borderRadius: 8, marginBottom: 2,
                   background: tab === item.id ? `${t.accent}15` : "transparent",
@@ -538,30 +549,33 @@ export default function App() {
           </div>
           
           <div style={{ padding: 10, borderTop: `1px solid ${t.border}` }}>
-            <button onClick={() => setUser(null)} style={{ width: "100%", padding: 10, background: `${t.danger}15`, border: "none", borderRadius: 8, color: t.danger, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
+            <button onClick={() => { setUser(null); setMenuOpen(false); }} style={{ width: "100%", padding: 10, background: `${t.danger}15`, border: "none", borderRadius: 8, color: t.danger, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
               🚪 {T("logout")}
             </button>
           </div>
         </div>
 
         {/* Main */}
-        <div style={{ marginLeft: 260, flex: 1, minWidth: 0 }}>
+        <div className="main-content" style={{ marginLeft: 0, flex: 1, minWidth: 0 }}>
           {/* Top Bar */}
-          <div style={{ background: t.card, borderBottom: `1px solid ${t.border}`, padding: "14px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 700 }}>{tabs.find(x => x.id === tab)?.label}</h1>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <select value={lang} onChange={e => updateLang(e.target.value)} style={{ padding: "7px 10px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, cursor: "pointer", outline: "none" }}>
-                <option value="uz">🇺🇿 O'zbek</option>
-                <option value="ru">🇷🇺 Русский</option>
+          <div style={{ background: t.card, borderBottom: `1px solid ${t.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button className="menu-btn" onClick={() => setMenuOpen(true)} style={{ width: 36, height: 36, borderRadius: 8, background: t.inputBg, border: `1px solid ${t.border}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>☰</button>
+              <h1 style={{ fontSize: 16, fontWeight: 700 }}>{tabs.find(x => x.id === tab)?.label}</h1>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select value={lang} onChange={e => updateLang(e.target.value)} style={{ padding: "6px 8px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12, cursor: "pointer", outline: "none" }}>
+                <option value="uz">🇺🇿 UZ</option>
+                <option value="ru">🇷🇺 RU</option>
               </select>
-              <button onClick={() => updateDk(!dk)} style={{ width: 36, height: 36, borderRadius: 8, background: t.inputBg, border: `1px solid ${t.border}`, cursor: "pointer", fontSize: 16 }}>
+              <button onClick={() => updateDk(!dk)} style={{ width: 34, height: 34, borderRadius: 8, background: t.inputBg, border: `1px solid ${t.border}`, cursor: "pointer", fontSize: 14 }}>
                 {dk ? "☀️" : "🌙"}
               </button>
             </div>
           </div>
 
           {/* Content */}
-          <div style={{ padding: "24px 28px" }}>
+          <div style={{ padding: "16px" }}>
             {tab === "dashboard" && <Dashboard t={t} T={T} user={user} isAdmin={isAdmin} operators={operators} reports={reports} complaints={complaints} feedbackList={feedbackList} calcDailyAmount={calcDailyAmount} kpiRules={kpiRules} />}
             {tab === "operators" && isAdmin && <Operators t={t} T={T} operators={operators} setOperators={updateOperators} />}
             {tab === "dailyReport" && <DailyReport t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} setReports={updateReports} calcDailyAmount={calcDailyAmount} />}
@@ -613,7 +627,7 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
           {err && <div style={{ background: `${t.danger}15`, color: t.danger, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{err}</div>}
           <button onClick={go} style={{ width: "100%", padding: 12, background: t.success, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>{T("login")}</button>
         </div>
-        
+        <p style={{ textAlign: "center", marginTop: 20, color: t.mut, fontSize: 12 }}>{T("demo")}: admin/admin • aziza/1234 • bobur/1234</p>
       </div>
     </div>
   );
