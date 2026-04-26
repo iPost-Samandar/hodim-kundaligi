@@ -627,7 +627,7 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
           {err && <div style={{ background: `${t.danger}15`, color: t.danger, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{err}</div>}
           <button onClick={go} style={{ width: "100%", padding: 12, background: t.success, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>{T("login")}</button>
         </div>
-        <p style={{ textAlign: "center", marginTop: 20, color: t.mut, fontSize: 12 }}>{T("demo")}: admin/admin • aziza/1234 • bobur/1234</p>
+
       </div>
     </div>
   );
