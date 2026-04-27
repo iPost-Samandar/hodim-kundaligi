@@ -578,7 +578,7 @@ export default function App() {
           <div style={{ padding: "16px" }}>
             {tab === "dashboard" && <Dashboard t={t} T={T} user={user} isAdmin={isAdmin} operators={operators} reports={reports} complaints={complaints} feedbackList={feedbackList} calcDailyAmount={calcDailyAmount} kpiRules={kpiRules} />}
             {tab === "operators" && isAdmin && <Operators t={t} T={T} operators={operators} setOperators={updateOperators} />}
-            {tab === "dailyReport" && <DailyReport t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} setReports={updateReports} calcDailyAmount={calcDailyAmount} />}
+            {tab === "dailyReport" && <DailyReport t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} setReports={updateReports} calcDailyAmount={calcDailyAmount} schedules={schedules} />}
             {tab === "salary" && <Salary t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} penalties={penalties} calcDailyAmount={calcDailyAmount} kpiRules={kpiRules} />}
             {tab === "schedule" && <Schedule t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} schedules={schedules} setSchedules={updateSchedules} lang={lang} />}
             {tab === "announcements" && <Announcements t={t} T={T} isAdmin={isAdmin} announcements={announcements} setAnnouncements={updateAnnouncements} />}
@@ -863,7 +863,7 @@ function Operators({ t, T, operators, setOperators }) {
 }
 
 // ═══ DAILY REPORT ═══
-function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calcDailyAmount }) {
+function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calcDailyAmount, schedules }) {
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ user_id: operators[0]?.id || "", date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: 90, notes: "" });
@@ -873,14 +873,53 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
     ? (filterDate ? reports.filter(r => r.date === filterDate) : reports)
     : reports.filter(r => r.user_id === user.id);
 
+  // Grafikdan ish boshlanish vaqtini olish
+  const getScheduledStart = (userId, date) => {
+    const sched = schedules.find(s => s.user_id === userId && s.date === date);
+    return sched?.shift_start || null;
+  };
+
+  // Kech qolgan daqiqani avtomatik hisoblash
+  const calcLateMinutes = (scheduledStart, arrivedAt) => {
+    if (!scheduledStart || !arrivedAt) return 0;
+    const [sh, sm] = scheduledStart.split(":").map(Number);
+    const [ah, am] = arrivedAt.split(":").map(Number);
+    const schedMinutes = sh * 60 + sm;
+    const arrivedMinutes = ah * 60 + am;
+    return Math.max(0, arrivedMinutes - schedMinutes);
+  };
+
+  // Operator va sana o'zgarganda kech qolishni qayta hisoblash
+  const updateFormWithAutoLate = (newForm) => {
+    const scheduledStart = getScheduledStart(newForm.user_id, newForm.date);
+    const late = calcLateMinutes(scheduledStart, newForm.arrived_at);
+    setForm({ ...newForm, late_minutes: late, _scheduledStart: scheduledStart });
+  };
+
+  const openAdd = () => {
+    const initForm = { user_id: operators[0]?.id, date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: 90, notes: "" };
+    const scheduledStart = getScheduledStart(initForm.user_id, initForm.date);
+    const late = calcLateMinutes(scheduledStart, initForm.arrived_at);
+    setForm({ ...initForm, late_minutes: late, _scheduledStart: scheduledStart });
+    setEditing(null);
+    setShow(true);
+  };
+
+  const openEdit = (r) => {
+    const scheduledStart = getScheduledStart(r.user_id, r.date);
+    setForm({ ...r, _scheduledStart: scheduledStart });
+    setEditing(r);
+    setShow(true);
+  };
+
   const save = () => {
-    if (editing) setReports(reports.map(r => r.id === editing.id ? { ...r, ...form } : r));
-    else setReports([...reports, { ...form, id: uid() }]);
+    const { _scheduledStart, ...cleanForm } = form;
+    if (editing) setReports(reports.map(r => r.id === editing.id ? { ...r, ...cleanForm } : r));
+    else setReports([...reports, { ...cleanForm, id: uid() }]);
     setShow(false);
   };
 
   const del = (id) => setReports(reports.filter(r => r.id !== id));
-
   const getOpName = (id) => operators.find(o => o.id === id)?.full_name || id;
 
   return (
@@ -890,7 +929,7 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
           {isAdmin && <Input t={t} type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ width: 160 }} />}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          {isAdmin && <Btn t={t} onClick={() => { setForm({ user_id: operators[0]?.id, date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: 90, notes: "" }); setEditing(null); setShow(true); }}>➕ {T("addReport")}</Btn>}
+          {isAdmin && <Btn t={t} onClick={openAdd}>➕ {T("addReport")}</Btn>}
           {isAdmin && <Btn t={t} variant="secondary" onClick={() => exportCSV("reports", reports)}>📥 {T("export")}</Btn>}
         </div>
       </div>
@@ -919,13 +958,13 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
                   {isAdmin && <td style={{ padding: 12 }}>{getOpName(r.user_id)}</td>}
                   <td style={{ padding: 12, textAlign: "center" }}>{r.arrived_at}</td>
                   <td style={{ padding: 12, textAlign: "center" }}>{r.left_at}</td>
-                  <td style={{ padding: 12, textAlign: "center", color: r.late_minutes > 0 ? t.danger : t.success }}>{r.late_minutes}</td>
+                  <td style={{ padding: 12, textAlign: "center", color: r.late_minutes > 0 ? t.danger : t.success, fontWeight: 600 }}>{r.late_minutes > 0 ? `+${r.late_minutes}` : "0"}</td>
                   <td style={{ padding: 12, textAlign: "center", fontWeight: 600 }}>{r.tasks_completed}</td>
                   <td style={{ padding: 12, textAlign: "center" }}><Badge t={t} color={r.quality_score >= 90 ? t.success : r.quality_score >= 70 ? t.warning : t.danger}>{r.quality_score}%</Badge></td>
                   <td style={{ padding: 12, textAlign: "right", fontWeight: 600, color: t.success }}>{fmt(calcDailyAmount(r))}</td>
                   {isAdmin && <td style={{ padding: 12, textAlign: "right" }}>
                     <div style={{ display: "inline-flex", gap: 5 }}>
-                      <Btn t={t} variant="secondary" onClick={() => { setForm(r); setEditing(r); setShow(true); }}>✏️</Btn>
+                      <Btn t={t} variant="secondary" onClick={() => openEdit(r)}>✏️</Btn>
                       <Btn t={t} variant="danger" onClick={() => del(r.id)}>🗑️</Btn>
                     </div>
                   </td>}
@@ -940,17 +979,42 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
         <Modal t={t} title={editing ? T("edit") : T("addReport")} onClose={() => setShow(false)} wide>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("operator")}</label>
-              <Select t={t} value={form.user_id} onChange={e => setForm({ ...form, user_id: e.target.value })}>
+              <Select t={t} value={form.user_id} onChange={e => updateFormWithAutoLate({ ...form, user_id: e.target.value })}>
                 {operators.map(o => <option key={o.id} value={o.id}>{o.full_name}</option>)}
               </Select>
             </div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("date")}</label><Input t={t} type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("arrivedAt")}</label><Input t={t} type="time" value={form.arrived_at} onChange={e => setForm({ ...form, arrived_at: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("leftAt")}</label><Input t={t} type="time" value={form.left_at} onChange={e => setForm({ ...form, left_at: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("lateMinutes")}</label><Input t={t} type="number" value={form.late_minutes} onChange={e => setForm({ ...form, late_minutes: +e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("tasksCompleted")}</label><Input t={t} type="number" value={form.tasks_completed} onChange={e => setForm({ ...form, tasks_completed: +e.target.value })} /></div>
-            <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("qualityScore")} (%)</label><Input t={t} type="number" min="0" max="100" value={form.quality_score} onChange={e => setForm({ ...form, quality_score: +e.target.value })} /></div>
-            <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("notes")}</label><Textarea t={t} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} /></div>
+            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("date")}</label>
+              <Input t={t} type="date" value={form.date} onChange={e => updateFormWithAutoLate({ ...form, date: e.target.value })} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("arrivedAt")}</label>
+              <Input t={t} type="time" value={form.arrived_at} onChange={e => updateFormWithAutoLate({ ...form, arrived_at: e.target.value })} />
+              {form._scheduledStart && (
+                <div style={{ fontSize: 11, color: t.sec, marginTop: 4 }}>📅 Grafik: {form._scheduledStart}</div>
+              )}
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("leftAt")}</label>
+              <Input t={t} type="time" value={form.left_at} onChange={e => setForm({ ...form, left_at: e.target.value })} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("lateMinutes")}</label>
+              <div style={{ padding: "10px 12px", background: form.late_minutes > 0 ? `${t.danger}15` : `${t.success}15`, border: `1px solid ${form.late_minutes > 0 ? t.danger : t.success}30`, borderRadius: 8, fontSize: 16, fontWeight: 700, color: form.late_minutes > 0 ? t.danger : t.success }}>
+                {form.late_minutes > 0 ? `+${form.late_minutes} daq` : "✓ Vaqtida"}
+              </div>
+              {!form._scheduledStart && (
+                <div style={{ fontSize: 11, color: t.warning, marginTop: 4 }}>⚠️ Bu kunga grafik belgilanmagan</div>
+              )}
+            </div>
+            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("tasksCompleted")}</label>
+              <Input t={t} type="number" value={form.tasks_completed} onChange={e => setForm({ ...form, tasks_completed: +e.target.value })} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("qualityScore")} (%)</label>
+              <Input t={t} type="number" min="0" max="100" value={form.quality_score} onChange={e => setForm({ ...form, quality_score: +e.target.value })} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("notes")}</label>
+              <Textarea t={t} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} />
+            </div>
           </div>
           <div style={{ marginTop: 16 }}><Btn t={t} onClick={save}>✓ {T("save")}</Btn></div>
         </Modal>
