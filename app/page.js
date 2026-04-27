@@ -1008,6 +1008,8 @@ function Salary({ t, T, isAdmin, user, operators, reports, calcDailyAmount, kpiR
 // ═══ SCHEDULE ═══
 function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules }) {
   const [selMonth, setSelMonth] = useState(today().slice(0, 7));
+  const [editModal, setEditModal] = useState(null); // {uid, date, ...}
+  const [editForm, setEditForm] = useState({ shift_type: "morning", shift_start: "09:00", shift_end: "14:00" });
   const daysInMonth = new Date(+selMonth.split("-")[0], +selMonth.split("-")[1], 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const targetOps = isAdmin ? operators : operators.filter(o => o.id === user.id);
@@ -1017,65 +1019,137 @@ function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules }) {
     return schedules.find(s => s.user_id === uid && s.date === dateStr);
   };
 
-  const setShift = (uid, d, shift_type) => {
+  const openEdit = (uid, d) => {
     const dateStr = `${selMonth}-${String(d).padStart(2, "0")}`;
-    const existing = schedules.findIndex(s => s.user_id === uid && s.date === dateStr);
-    const newSched = { user_id: uid, date: dateStr, shift_type, shift_start: "09:00", shift_end: "18:00" };
+    const existing = getShift(uid, d);
+    if (existing) {
+      setEditForm({ shift_type: existing.shift_type, shift_start: existing.shift_start || "09:00", shift_end: existing.shift_end || "14:00" });
+    } else {
+      setEditForm({ shift_type: "morning", shift_start: "09:00", shift_end: "14:00" });
+    }
+    setEditModal({ uid, date: dateStr, day: d, opName: operators.find(o => o.id === uid)?.full_name || "" });
+  };
+
+  const saveShift = () => {
+    if (!editModal) return;
+    const existing = schedules.findIndex(s => s.user_id === editModal.uid && s.date === editModal.date);
+    const newSched = { user_id: editModal.uid, date: editModal.date, shift_type: editForm.shift_type, shift_start: editForm.shift_start, shift_end: editForm.shift_end };
     if (existing >= 0) setSchedules(schedules.map((s, i) => i === existing ? newSched : s));
     else setSchedules([...schedules, newSched]);
+    setEditModal(null);
+  };
+
+  const removeShift = () => {
+    if (!editModal) return;
+    setSchedules(schedules.filter(s => !(s.user_id === editModal.uid && s.date === editModal.date)));
+    setEditModal(null);
   };
 
   const colors = { morning: t.warning, evening: "#8b5cf6", off: t.mut };
+  const shiftLabels = { morning: T("morning"), evening: T("evening"), off: T("off") };
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
         <Input t={t} type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)} style={{ width: 180 }} />
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+          {[["morning", T("morning")], ["evening", T("evening")], ["off", T("off")]].map(([k, label]) => (
+            <div key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: colors[k] }} />
+              <span style={{ fontSize: 12, color: t.sec }}>{label}</span>
+            </div>
+          ))}
+        </div>
       </div>
-      <Card t={t} style={{ padding: 0, overflow: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
-          <thead>
-            <tr style={{ background: t.inputBg }}>
-              <th style={{ padding: 10, textAlign: "left", color: t.sec, position: "sticky", left: 0, background: t.inputBg, zIndex: 2, minWidth: 140 }}>{T("operator")}</th>
-              {days.map(d => <th key={d} style={{ padding: "8px 4px", color: t.sec, minWidth: 36 }}>{d}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {targetOps.map(op => (
-              <tr key={op.id} style={{ borderTop: `1px solid ${t.border}` }}>
-                <td style={{ padding: 10, position: "sticky", left: 0, background: t.card, zIndex: 1, fontWeight: 500 }}>{op.full_name}</td>
-                {days.map(d => {
-                  const s = getShift(op.id, d);
-                  return (
-                    <td key={d} style={{ padding: "2px" }}>
-                      {isAdmin ? (
-                        <select value={s?.shift_type || ""} onChange={e => setShift(op.id, d, e.target.value)} style={{ width: 34, padding: "3px 0", background: s ? `${colors[s.shift_type]}20` : t.inputBg, border: `1px solid ${s ? colors[s.shift_type] : t.border}`, borderRadius: 5, color: s ? colors[s.shift_type] : t.mut, fontSize: 10, cursor: "pointer", textAlign: "center", outline: "none" }}>
-                          <option value="">—</option>
-                          <option value="morning">E</option>
-                          <option value="evening">K</option>
-                          <option value="off">D</option>
-                        </select>
-                      ) : (
-                        <div style={{ width: 34, height: 26, background: s ? `${colors[s.shift_type]}20` : t.inputBg, border: `1px solid ${s ? colors[s.shift_type] : t.border}`, borderRadius: 5, color: s ? colors[s.shift_type] : t.mut, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {s ? s.shift_type[0].toUpperCase() : "—"}
-                        </div>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-      <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
-        {[["morning", T("morning")], ["evening", T("evening")], ["off", T("off")]].map(([k, label]) => (
-          <div key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: colors[k] }} />
-            <span style={{ fontSize: 12, color: t.sec }}>{label}</span>
+
+      {targetOps.map(op => (
+        <Card key={op.id} t={t} style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff" }}>{op.emoji}</div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{op.full_name}</div>
           </div>
-        ))}
-      </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+            {["Du","Se","Cho","Pa","Ju","Sh","Ya"].map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 10, color: t.mut, fontWeight: 600, padding: 4 }}>{d}</div>
+            ))}
+            {/* Bo'sh kunlar */}
+            {Array.from({ length: (new Date(+selMonth.split("-")[0], +selMonth.split("-")[1] - 1, 1).getDay() + 6) % 7 }, (_, i) => (
+              <div key={`e${i}`} />
+            ))}
+            {days.map(d => {
+              const s = getShift(op.id, d);
+              const isToday = `${selMonth}-${String(d).padStart(2, "0")}` === today();
+              const c = s ? colors[s.shift_type] : null;
+              return (
+                <div
+                  key={d}
+                  onClick={() => isAdmin && openEdit(op.id, d)}
+                  style={{
+                    aspectRatio: "1", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+                    background: s ? `${c}15` : "transparent",
+                    border: isToday ? `2px solid ${t.accent}` : s ? `1px solid ${c}40` : `1px solid ${t.border}`,
+                    cursor: isAdmin ? "pointer" : "default",
+                    transition: "all 0.2s",
+                    position: "relative",
+                    minHeight: 48,
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? t.text : s ? c : t.mut }}>{d}</span>
+                  {s && s.shift_type !== "off" && (
+                    <span style={{ fontSize: 8, color: c, fontWeight: 600, lineHeight: 1 }}>{s.shift_start?.slice(0,5)}</span>
+                  )}
+                  {s && s.shift_type === "off" && (
+                    <span style={{ fontSize: 8, color: c, fontWeight: 600 }}>{T("off")}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ))}
+
+      {/* Edit Modal */}
+      {editModal && (
+        <Modal t={t} title={`${editModal.opName} — ${editModal.date}`} onClose={() => setEditModal(null)}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("type")}</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[["morning", T("morning"), t.warning], ["evening", T("evening"), "#8b5cf6"], ["off", T("off"), t.mut]].map(([val, label, color]) => (
+                  <button key={val} onClick={() => {
+                    const times = val === "morning" ? { shift_start: "09:00", shift_end: "14:00" } : val === "evening" ? { shift_start: "14:00", shift_end: "21:00" } : { shift_start: "", shift_end: "" };
+                    setEditForm({ ...editForm, shift_type: val, ...times });
+                  }} style={{
+                    flex: 1, padding: "12px 8px", borderRadius: 10,
+                    border: editForm.shift_type === val ? `2px solid ${color}` : `1px solid ${t.border}`,
+                    background: editForm.shift_type === val ? `${color}15` : "transparent",
+                    color: editForm.shift_type === val ? color : t.sec,
+                    fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center",
+                  }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {editForm.shift_type !== "off" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("arrivedAt")}</label>
+                  <Input t={t} type="time" value={editForm.shift_start} onChange={e => setEditForm({ ...editForm, shift_start: e.target.value })} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("leftAt")}</label>
+                  <Input t={t} type="time" value={editForm.shift_end} onChange={e => setEditForm({ ...editForm, shift_end: e.target.value })} />
+                </div>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn t={t} onClick={saveShift} style={{ flex: 1 }}>✓ {T("save")}</Btn>
+              <Btn t={t} variant="danger" onClick={removeShift}>{T("delete")}</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
