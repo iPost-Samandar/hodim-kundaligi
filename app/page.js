@@ -580,7 +580,7 @@ export default function App() {
             {tab === "operators" && isAdmin && <Operators t={t} T={T} operators={operators} setOperators={updateOperators} />}
             {tab === "dailyReport" && <DailyReport t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} setReports={updateReports} calcDailyAmount={calcDailyAmount} />}
             {tab === "salary" && <Salary t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} penalties={penalties} calcDailyAmount={calcDailyAmount} kpiRules={kpiRules} />}
-            {tab === "schedule" && <Schedule t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} schedules={schedules} setSchedules={updateSchedules} />}
+            {tab === "schedule" && <Schedule t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} schedules={schedules} setSchedules={updateSchedules} lang={lang} />}
             {tab === "announcements" && <Announcements t={t} T={T} isAdmin={isAdmin} announcements={announcements} setAnnouncements={updateAnnouncements} />}
             {tab === "messages" && <Messages t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} messages={messages} setMessages={updateMessages} />}
             {tab === "feedback" && <Feedback t={t} T={T} isAdmin={isAdmin} user={user} feedbackList={feedbackList} setFeedbackList={updateFeedback} operators={operators} />}
@@ -1006,13 +1006,27 @@ function Salary({ t, T, isAdmin, user, operators, reports, calcDailyAmount, kpiR
 }
 
 // ═══ SCHEDULE ═══
-function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules }) {
+function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules, lang }) {
   const [selMonth, setSelMonth] = useState(today().slice(0, 7));
-  const [editModal, setEditModal] = useState(null); // {uid, date, ...}
+  const [editModal, setEditModal] = useState(null);
   const [editForm, setEditForm] = useState({ shift_type: "morning", shift_start: "09:00", shift_end: "14:00" });
+  const [showTemplate, setShowTemplate] = useState(false);
+  const [templateOp, setTemplateOp] = useState("all");
+  const [template, setTemplate] = useState({
+    1: { active: true, shift_type: "morning", shift_start: "09:00", shift_end: "14:00" },
+    2: { active: true, shift_type: "morning", shift_start: "09:00", shift_end: "14:00" },
+    3: { active: true, shift_type: "morning", shift_start: "09:00", shift_end: "14:00" },
+    4: { active: true, shift_type: "morning", shift_start: "09:00", shift_end: "14:00" },
+    5: { active: true, shift_type: "morning", shift_start: "09:00", shift_end: "14:00" },
+    6: { active: false, shift_type: "off", shift_start: "", shift_end: "" },
+    0: { active: false, shift_type: "off", shift_start: "", shift_end: "" },
+  });
+
   const daysInMonth = new Date(+selMonth.split("-")[0], +selMonth.split("-")[1], 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const targetOps = isAdmin ? operators : operators.filter(o => o.id === user.id);
+  const dayNames = ["Du","Se","Cho","Pa","Ju","Sh","Ya"];
+  const dayNamesFull = { 1: "Dushanba", 2: "Seshanba", 3: "Chorshanba", 4: "Payshanba", 5: "Juma", 6: "Shanba", 0: "Yakshanba" };
 
   const getShift = (uid, d) => {
     const dateStr = `${selMonth}-${String(d).padStart(2, "0")}`;
@@ -1022,11 +1036,8 @@ function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules }) {
   const openEdit = (uid, d) => {
     const dateStr = `${selMonth}-${String(d).padStart(2, "0")}`;
     const existing = getShift(uid, d);
-    if (existing) {
-      setEditForm({ shift_type: existing.shift_type, shift_start: existing.shift_start || "09:00", shift_end: existing.shift_end || "14:00" });
-    } else {
-      setEditForm({ shift_type: "morning", shift_start: "09:00", shift_end: "14:00" });
-    }
+    if (existing) setEditForm({ shift_type: existing.shift_type, shift_start: existing.shift_start || "09:00", shift_end: existing.shift_end || "14:00" });
+    else setEditForm({ shift_type: "morning", shift_start: "09:00", shift_end: "14:00" });
     setEditModal({ uid, date: dateStr, day: d, opName: operators.find(o => o.id === uid)?.full_name || "" });
   };
 
@@ -1045,70 +1056,105 @@ function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules }) {
     setEditModal(null);
   };
 
+  // Haftalik shablonni butun oyga qo'llash
+  const applyTemplate = () => {
+    const year = +selMonth.split("-")[0];
+    const month = +selMonth.split("-")[1];
+    const targetOperators = templateOp === "all" ? operators : operators.filter(o => o.id === templateOp);
+    let newSchedules = [...schedules];
+
+    for (const op of targetOperators) {
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${selMonth}-${String(d).padStart(2, "0")}`;
+        const dayOfWeek = new Date(year, month - 1, d).getDay(); // 0=Ya, 1=Du...
+        const tmpl = template[dayOfWeek];
+
+        // Eski grafikni o'chirish
+        newSchedules = newSchedules.filter(s => !(s.user_id === op.id && s.date === dateStr));
+
+        if (tmpl.active) {
+          newSchedules.push({
+            user_id: op.id, date: dateStr, shift_type: tmpl.shift_type,
+            shift_start: tmpl.shift_start, shift_end: tmpl.shift_end,
+          });
+        }
+      }
+    }
+    setSchedules(newSchedules);
+    setShowTemplate(false);
+  };
+
+  const updateTemplateDay = (dayNum, field, value) => {
+    setTemplate(prev => ({
+      ...prev,
+      [dayNum]: { ...prev[dayNum], [field]: value }
+    }));
+  };
+
+  const setTemplateShiftType = (dayNum, shift_type) => {
+    const times = shift_type === "morning" ? { shift_start: "09:00", shift_end: "14:00" }
+      : shift_type === "evening" ? { shift_start: "14:00", shift_end: "21:00" }
+      : { shift_start: "", shift_end: "" };
+    setTemplate(prev => ({
+      ...prev,
+      [dayNum]: { ...prev[dayNum], shift_type, active: shift_type !== "off" || true, ...times }
+    }));
+  };
+
   const colors = { morning: t.warning, evening: "#8b5cf6", off: t.mut };
-  const shiftLabels = { morning: T("morning"), evening: T("evening"), off: T("off") };
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
         <Input t={t} type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)} style={{ width: 180 }} />
-        <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-          {[["morning", T("morning")], ["evening", T("evening")], ["off", T("off")]].map(([k, label]) => (
-            <div key={k} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: colors[k] }} />
-              <span style={{ fontSize: 12, color: t.sec }}>{label}</span>
-            </div>
-          ))}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            {[["morning", T("morning")], ["evening", T("evening")], ["off", T("off")]].map(([k, label]) => (
+              <div key={k} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 3, background: colors[k] }} />
+                <span style={{ fontSize: 11, color: t.sec }}>{label}</span>
+              </div>
+            ))}
+          </div>
+          {isAdmin && <Btn t={t} onClick={() => setShowTemplate(true)}>📋 {lang === "ru" ? "Шаблон на месяц" : "Haftalik shablon"}</Btn>}
         </div>
       </div>
 
-      {targetOps.map(op => (
-        <Card key={op.id} t={t} style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff" }}>{op.emoji}</div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{op.full_name}</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-            {["Du","Se","Cho","Pa","Ju","Sh","Ya"].map(d => (
-              <div key={d} style={{ textAlign: "center", fontSize: 10, color: t.mut, fontWeight: 600, padding: 4 }}>{d}</div>
-            ))}
-            {/* Bo'sh kunlar */}
-            {Array.from({ length: (new Date(+selMonth.split("-")[0], +selMonth.split("-")[1] - 1, 1).getDay() + 6) % 7 }, (_, i) => (
-              <div key={`e${i}`} />
-            ))}
-            {days.map(d => {
-              const s = getShift(op.id, d);
-              const isToday = `${selMonth}-${String(d).padStart(2, "0")}` === today();
-              const c = s ? colors[s.shift_type] : null;
-              return (
-                <div
-                  key={d}
-                  onClick={() => isAdmin && openEdit(op.id, d)}
-                  style={{
-                    aspectRatio: "1", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
+      {/* Operator kalendarlari */}
+      {targetOps.map(op => {
+        const firstDay = (new Date(+selMonth.split("-")[0], +selMonth.split("-")[1] - 1, 1).getDay() + 6) % 7;
+        return (
+          <Card key={op.id} t={t} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff" }}>{op.emoji}</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{op.full_name}</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+              {dayNames.map(d => <div key={d} style={{ textAlign: "center", fontSize: 10, color: t.mut, fontWeight: 600, padding: 3 }}>{d}</div>)}
+              {Array.from({ length: firstDay }, (_, i) => <div key={`e${i}`} />)}
+              {days.map(d => {
+                const s = getShift(op.id, d);
+                const isToday = `${selMonth}-${String(d).padStart(2, "0")}` === today();
+                const c = s ? colors[s.shift_type] : null;
+                return (
+                  <div key={d} onClick={() => isAdmin && openEdit(op.id, d)} style={{
+                    borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, padding: "6px 2px",
                     background: s ? `${c}15` : "transparent",
                     border: isToday ? `2px solid ${t.accent}` : s ? `1px solid ${c}40` : `1px solid ${t.border}`,
-                    cursor: isAdmin ? "pointer" : "default",
-                    transition: "all 0.2s",
-                    position: "relative",
-                    minHeight: 48,
-                  }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? t.text : s ? c : t.mut }}>{d}</span>
-                  {s && s.shift_type !== "off" && (
-                    <span style={{ fontSize: 8, color: c, fontWeight: 600, lineHeight: 1 }}>{s.shift_start?.slice(0,5)}</span>
-                  )}
-                  {s && s.shift_type === "off" && (
-                    <span style={{ fontSize: 8, color: c, fontWeight: 600 }}>{T("off")}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      ))}
+                    cursor: isAdmin ? "pointer" : "default", minHeight: 46,
+                  }}>
+                    <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? t.text : s ? c : t.mut }}>{d}</span>
+                    {s && s.shift_type !== "off" && <span style={{ fontSize: 7, color: c, fontWeight: 600, lineHeight: 1 }}>{s.shift_start?.slice(0,5)}-{s.shift_end?.slice(0,5)}</span>}
+                    {s && s.shift_type === "off" && <span style={{ fontSize: 8, color: c, fontWeight: 600 }}>Dam</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })}
 
-      {/* Edit Modal */}
+      {/* Bitta kun tahrirlash modali */}
       {editModal && (
         <Modal t={t} title={`${editModal.opName} — ${editModal.date}`} onClose={() => setEditModal(null)}>
           <div style={{ display: "grid", gap: 14 }}>
@@ -1123,30 +1169,73 @@ function Schedule({ t, T, isAdmin, user, operators, schedules, setSchedules }) {
                     flex: 1, padding: "12px 8px", borderRadius: 10,
                     border: editForm.shift_type === val ? `2px solid ${color}` : `1px solid ${t.border}`,
                     background: editForm.shift_type === val ? `${color}15` : "transparent",
-                    color: editForm.shift_type === val ? color : t.sec,
-                    fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center",
-                  }}>
-                    {label}
-                  </button>
+                    color: editForm.shift_type === val ? color : t.sec, fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "center",
+                  }}>{label}</button>
                 ))}
               </div>
             </div>
             {editForm.shift_type !== "off" && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("arrivedAt")}</label>
-                  <Input t={t} type="time" value={editForm.shift_start} onChange={e => setEditForm({ ...editForm, shift_start: e.target.value })} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("leftAt")}</label>
-                  <Input t={t} type="time" value={editForm.shift_end} onChange={e => setEditForm({ ...editForm, shift_end: e.target.value })} />
-                </div>
+                <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("arrivedAt")}</label><Input t={t} type="time" value={editForm.shift_start} onChange={e => setEditForm({ ...editForm, shift_start: e.target.value })} /></div>
+                <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("leftAt")}</label><Input t={t} type="time" value={editForm.shift_end} onChange={e => setEditForm({ ...editForm, shift_end: e.target.value })} /></div>
               </div>
             )}
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn t={t} onClick={saveShift} style={{ flex: 1 }}>✓ {T("save")}</Btn>
+              <Btn t={t} onClick={saveShift}>✓ {T("save")}</Btn>
               <Btn t={t} variant="danger" onClick={removeShift}>{T("delete")}</Btn>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Haftalik shablon modali */}
+      {showTemplate && (
+        <Modal t={t} title={lang === "ru" ? "Шаблон на месяц" : "Haftalik shablon → oyga qo'llash"} onClose={() => setShowTemplate(false)} wide>
+          <p style={{ fontSize: 13, color: t.sec, marginBottom: 16 }}>{lang === "ru" ? "Настройте расписание для каждого дня недели, затем примените на весь месяц" : "Haftaning har kuniga smena va vaqt belgilang, keyin butun oyga qo'llanadi"}</p>
+
+          {/* Operator tanlash */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{lang === "ru" ? "Применить для" : "Kimga qo'llash"}</label>
+            <Select t={t} value={templateOp} onChange={e => setTemplateOp(e.target.value)}>
+              <option value="all">{lang === "ru" ? "Все операторы" : "Barcha operatorlar"}</option>
+              {operators.map(o => <option key={o.id} value={o.id}>{o.full_name}</option>)}
+            </Select>
+          </div>
+
+          {/* Hafta kunlari */}
+          <div style={{ display: "grid", gap: 8 }}>
+            {[1, 2, 3, 4, 5, 6, 0].map(dayNum => {
+              const tmpl = template[dayNum];
+              const c = colors[tmpl.shift_type] || t.mut;
+              return (
+                <div key={dayNum} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: `${c}08`, border: `1px solid ${c}30`, borderRadius: 10, flexWrap: "wrap" }}>
+                  <div style={{ width: 90, fontWeight: 600, fontSize: 13, color: t.text }}>{dayNamesFull[dayNum]}</div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[["morning", "E", t.warning], ["evening", "K", "#8b5cf6"], ["off", "D", t.mut]].map(([val, label, color]) => (
+                      <button key={val} onClick={() => setTemplateShiftType(dayNum, val)} style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        border: tmpl.shift_type === val ? `2px solid ${color}` : `1px solid ${t.border}`,
+                        background: tmpl.shift_type === val ? `${color}20` : "transparent",
+                        color: tmpl.shift_type === val ? color : t.mut, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                  {tmpl.shift_type !== "off" && (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input type="time" value={tmpl.shift_start} onChange={e => updateTemplateDay(dayNum, "shift_start", e.target.value)} style={{ padding: "6px 8px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, outline: "none", width: 95 }} />
+                      <span style={{ color: t.mut, fontSize: 12 }}>—</span>
+                      <input type="time" value={tmpl.shift_end} onChange={e => updateTemplateDay(dayNum, "shift_end", e.target.value)} style={{ padding: "6px 8px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, outline: "none", width: 95 }} />
+                    </div>
+                  )}
+                  {tmpl.shift_type === "off" && <span style={{ fontSize: 12, color: t.mut }}>{T("off")}</span>}
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
+            <Btn t={t} onClick={applyTemplate}>✓ {lang === "ru" ? `Применить на ${selMonth}` : `${selMonth} oyiga qo'llash`}</Btn>
+            <Btn t={t} variant="secondary" onClick={() => setShowTemplate(false)}>{T("cancel")}</Btn>
           </div>
         </Modal>
       )}
