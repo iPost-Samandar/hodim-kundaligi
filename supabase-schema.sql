@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════
--- HODIM KUNDALIGI - DATABASE SCHEMA
+-- HODIM KUNDALIGI — DATABASE SCHEMA (v2 — secure)
 -- Supabase SQL Editor'da Run bosing
 -- ═══════════════════════════════════════════
 
@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS reports (
   daily_amount NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_reports_user_date ON reports(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_reports_date ON reports(date);
 
 -- 3. E'lonlar
 CREATE TABLE IF NOT EXISTS announcements (
@@ -42,6 +44,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   date TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at DESC);
 
 -- 4. Xabarlar
 CREATE TABLE IF NOT EXISTS messages (
@@ -52,6 +55,7 @@ CREATE TABLE IF NOT EXISTS messages (
   is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_user_id, created_at DESC);
 
 -- 5. Taklif va shikoyatlar
 CREATE TABLE IF NOT EXISTS feedback (
@@ -62,6 +66,7 @@ CREATE TABLE IF NOT EXISTS feedback (
   status TEXT DEFAULT 'new' CHECK (status IN ('new', 'reviewing', 'resolved')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id, created_at DESC);
 
 -- 6. Mijoz e'tirozlari
 CREATE TABLE IF NOT EXISTS complaints (
@@ -74,6 +79,7 @@ CREATE TABLE IF NOT EXISTS complaints (
   date TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_complaints_date ON complaints(date DESC);
 
 -- 7. Ish grafigi
 CREATE TABLE IF NOT EXISTS schedules (
@@ -85,6 +91,7 @@ CREATE TABLE IF NOT EXISTS schedules (
   shift_type TEXT DEFAULT 'morning' CHECK (shift_type IN ('morning', 'evening', 'off')),
   UNIQUE(user_id, date)
 );
+CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules(user_id, date);
 
 -- 8. KPI qoidalari
 CREATE TABLE IF NOT EXISTS kpi_rules (
@@ -104,44 +111,62 @@ CREATE TABLE IF NOT EXISTS penalties (
   date TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_penalties_user ON penalties(user_id, date);
 
 -- ═══ BOSHLANG'ICH MA'LUMOTLAR ═══
 
--- Admin profili
+-- Admin profili. Default parol: 'admin' (bcrypt hash). Birinchi kirgandan so'ng O'ZGARTIRING!
 INSERT INTO users (id, login, password, full_name, phone, emoji, role)
-VALUES ('admin', 'admin', 'admin', 'Administrator', '999999999', '🛡️', 'admin')
+VALUES ('admin', 'admin', '$2a$10$GlyXhg6nObN9K1Tvh0YGOOtOHkzbeSn4ydvcYFcLdy6UbJVkMhuPW', 'Administrator', '999999999', '🛡️', 'admin')
 ON CONFLICT (id) DO NOTHING;
 
--- KPI boshlang'ich qoidalari
 INSERT INTO kpi_rules (id, late_fine, task_rate, quality_coef)
 VALUES (1, 1000, 5000, 1)
 ON CONFLICT (id) DO NOTHING;
 
--- Namuna e'lonlar
-INSERT INTO announcements (id, title, content, type, date) VALUES
-('a1', 'Tizim ishga tushdi', 'Hodim kundaligi tizimi ishga tushirildi', 'news', CURRENT_DATE::text),
-('a2', 'Muhim yig''ilish', 'Ertaga soat 10:00 da umumiy yig''ilish', 'urgent', CURRENT_DATE::text)
-ON CONFLICT (id) DO NOTHING;
+-- ═══════════════════════════════════════════
+-- ROW LEVEL SECURITY (RLS) — Phase 1
+-- Eng kritik: users jadvali (parollar bor) — anon kalit umuman kira olmaydi.
+-- Boshqa jadvallar hozircha public_all bilan qoldirilgan — Phase 1.5'da
+-- ularning har biri uchun API route yaratilgandan so'ng yopiladi.
+-- ═══════════════════════════════════════════
 
--- ═══ ROW LEVEL SECURITY (RLS) ═══
--- Hozircha RLS o'chirilgan holda ishlatamiz (oddiy API orqali)
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+-- Avval eski qoidalarni tozalash
+DO $$ DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT schemaname, tablename, policyname FROM pg_policies
+           WHERE schemaname='public'
+             AND tablename IN ('users','reports','announcements','messages',
+                               'feedback','complaints','schedules','kpi_rules','penalties')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+  END LOOP;
+END $$;
+
+ALTER TABLE users         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
-ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
-ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE kpi_rules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE penalties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE complaints    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedules     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kpi_rules     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE penalties     ENABLE ROW LEVEL SECURITY;
 
--- Hamma uchun ochiq (service key bilan ishlashda)
-CREATE POLICY "public_all" ON users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON reports FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON announcements FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON messages FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON feedback FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON complaints FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON schedules FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON kpi_rules FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "public_all" ON penalties FOR ALL USING (true) WITH CHECK (true);
+-- USERS: anon kirish YO'Q (parollar shu yerda). Service role bypass qiladi.
+-- (Hech qanday policy = anon kirish butunlay yopiq.)
+
+-- KPI o'qish ochiq, yozish faqat /api/kpi orqali
+CREATE POLICY kpi_read ON kpi_rules FOR SELECT TO anon, authenticated USING (true);
+
+-- Boshqa jadvallar — hozircha ochiq (Phase 1.5'da yopiladi)
+CREATE POLICY public_all ON reports       FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY public_all ON announcements FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY public_all ON messages      FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY public_all ON feedback      FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY public_all ON complaints    FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY public_all ON schedules     FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY public_all ON penalties     FOR ALL USING (true) WITH CHECK (true);
+
+-- Phase 1.5 TODO: yuqoridagi public_all qoidalarini olib tashlab,
+-- har bir jadval uchun /api/* yaratish va RLS'ni faqat service role'ga ochish.

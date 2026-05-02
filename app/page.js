@@ -260,17 +260,11 @@ const THEMES = {
 const DEPARTMENTS = ["deptUzWarehouse", "deptChinaWarehouse", "deptMarketing", "deptIT", "deptOTK", "deptBTS", "deptEMU", "deptIPost", "deptLogistics"];
 const EMOJIS = ["👩‍💼", "👨‍💼", "👩‍🔧", "👨‍🔧", "👩‍💻", "👨‍💻", "🧑‍🚀", "🦊", "🐼", "🤖", "💎", "⚡"];
 
-const uid = () => Math.random().toString(36).slice(2, 9);
+const uid = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `id_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
 const today = () => new Date().toISOString().split("T")[0];
 const fmt = (n) => new Intl.NumberFormat("ru-RU").format(Math.round(n));
 
-const INITIAL_OPS = [
-  { id: "op1", login: "aziza", password: "1234", full_name: "Aziza Karimova", phone: "901234567", emoji: "👩‍💼", role: "operator", is_active: true },
-  { id: "op2", login: "bobur", password: "1234", full_name: "Bobur Aliyev", phone: "901234568", emoji: "👨‍💼", role: "operator", is_active: true },
-  { id: "op3", login: "dilnoza", password: "1234", full_name: "Dilnoza Rashidova", phone: "901234569", emoji: "👩‍🔧", role: "operator", is_active: true },
-];
-
-const ADMIN_USER = { id: "admin", login: "admin", password: "admin", full_name: "Administrator", phone: "999999999", emoji: "🛡️", role: "admin", is_active: true };
+const INITIAL_OPS = [];
 
 const INITIAL_REPORTS = [
   { id: "r1", user_id: "op1", date: today(), arrived_at: "09:05", left_at: "18:00", late_minutes: 5, tasks_completed: 45, quality_score: 92, notes: "" },
@@ -309,12 +303,20 @@ export default function App() {
   const [penalties, setPenalties] = useState([]);
   const [kpiRules, setKpiRules] = useState({ lateFine: 1000, taskRate: 5000, qualityCoef: 1 });
 
-  // ═══ SUPABASE: Barcha ma'lumotlarni yuklash ═══
+  // ═══ Boshlang'ich yuklash: sessiya tekshiruvi + ma'lumotlar ═══
   useEffect(() => {
     (async () => {
       try {
-        const [rOps, rRep, rAnn, rCom, rSch, rMsg, rFb, rPen, rKpi] = await Promise.all([
-          supabase.from("users").select("*").eq("role", "operator").order("created_at"),
+        // 1) Sessiya tekshiruvi (cookie orqali)
+        const meRes = await fetch("/api/auth/me", { cache: "no-store" });
+        const me = meRes.ok ? await meRes.json() : { user: null };
+        if (me.user) setUser(me.user);
+
+        // 2) Ma'lumotlar — ba'zilari API orqali (xavfsiz), ba'zilari direct (Phase 1.5'gacha)
+        const isAdminMe = me.user?.role === "admin";
+        const tasks = [
+          isAdminMe ? fetch("/api/operators").then(r => r.ok ? r.json() : { operators: [] }) : Promise.resolve({ operators: [] }),
+          fetch("/api/kpi").then(r => r.ok ? r.json() : null).catch(() => null),
           supabase.from("reports").select("*").order("created_at", { ascending: false }),
           supabase.from("announcements").select("*").order("created_at", { ascending: false }),
           supabase.from("complaints").select("*").order("created_at", { ascending: false }),
@@ -322,17 +324,19 @@ export default function App() {
           supabase.from("messages").select("*").order("created_at", { ascending: false }),
           supabase.from("feedback").select("*").order("created_at", { ascending: false }),
           supabase.from("penalties").select("*").order("created_at", { ascending: false }),
-          supabase.from("kpi_rules").select("*").eq("id", 1).single(),
-        ]);
-        if (rOps.data?.length) setOperators(rOps.data.map(o => ({ ...o, id: o.id })));
-        if (rRep.data?.length) setReports(rRep.data);
-        if (rAnn.data?.length) setAnnouncements(rAnn.data);
-        if (rCom.data?.length) setComplaints(rCom.data);
-        if (rSch.data?.length) setSchedules(rSch.data);
-        if (rMsg.data?.length) setMessages(rMsg.data);
-        if (rFb.data?.length) setFeedbackList(rFb.data);
-        if (rPen.data?.length) setPenalties(rPen.data);
-        if (rKpi.data) setKpiRules({ lateFine: rKpi.data.late_fine, taskRate: rKpi.data.task_rate, qualityCoef: rKpi.data.quality_coef });
+        ];
+        const [rOps, rKpi, rRep, rAnn, rCom, rSch, rMsg, rFb, rPen] = await Promise.all(tasks);
+
+        if (rOps?.operators?.length) setOperators(rOps.operators);
+        if (rKpi?.kpi) setKpiRules(rKpi.kpi);
+        if (rRep?.data?.length) setReports(rRep.data);
+        if (rAnn?.data?.length) setAnnouncements(rAnn.data);
+        if (rCom?.data?.length) setComplaints(rCom.data);
+        if (rSch?.data?.length) setSchedules(rSch.data);
+        if (rMsg?.data?.length) setMessages(rMsg.data);
+        if (rFb?.data?.length) setFeedbackList(rFb.data);
+        if (rPen?.data?.length) setPenalties(rPen.data);
+
         // Til va tema localStorage dan
         const savedLang = localStorage.getItem("hk_lang");
         const savedDk = localStorage.getItem("hk_dk");
@@ -343,27 +347,60 @@ export default function App() {
     })();
   }, []);
 
-  // ═══ SUPABASE: Update funksiyalari ═══
+  // ═══ Operatorlar — server-side API orqali ═══
+  // Yangi yondashuv: yagona "diff sync" o'rniga, har action alohida API call qiladi.
+  // Bu funksiya orqaga muvofiqlik (eski kod chaqirsa) saqlash uchun: state ni o'rnatadi va
+  // server-side bilan tafovutlarni saqlaydi (yangi/o'zgartirilgan/o'chirilgan).
   const updateOperators = useCallback(async (v) => {
+    const prev = operators;
     setOperators(v);
-    // Supabase'ga sinxronlash
     try {
-      const existing = (await supabase.from("users").select("id").eq("role", "operator")).data || [];
-      const existingIds = existing.map(e => e.id);
-      const newIds = v.map(o => o.id);
-      // O'chirilganlarni aniqlash
-      const deleted = existingIds.filter(id => !newIds.includes(id));
-      for (const id of deleted) await supabase.from("users").delete().eq("id", id);
-      // Yangi va yangilangan
+      const prevById = new Map(prev.map(o => [o.id, o]));
+      const newById = new Map(v.map(o => [o.id, o]));
+      // O'chirilganlar
+      for (const id of prevById.keys()) {
+        if (!newById.has(id)) {
+          await fetch(`/api/operators/${id}`, { method: "DELETE" });
+        }
+      }
+      // Yangi yoki o'zgartirilganlar
       for (const op of v) {
-        await supabase.from("users").upsert({
-          id: op.id, login: op.login, password: op.password,
-          full_name: op.full_name, phone: op.phone || "",
-          emoji: op.emoji || "👩‍💼", role: "operator", is_active: op.is_active !== false,
-        });
+        const old = prevById.get(op.id);
+        if (!old) {
+          // Yangi — POST
+          if (!op.password) continue;
+          await fetch("/api/operators", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              login: op.login, password: op.password, full_name: op.full_name,
+              phone: op.phone || "", emoji: op.emoji || "👩‍💼",
+            }),
+          });
+        } else {
+          // Tahrirlash — PATCH (faqat o'zgargan field'lar)
+          const patch = {};
+          ["login", "full_name", "phone", "emoji", "is_active", "lang", "theme"].forEach(k => {
+            if (op[k] !== old[k]) patch[k] = op[k];
+          });
+          if (op.password) patch.password = op.password;
+          if (Object.keys(patch).length > 0) {
+            await fetch(`/api/operators/${op.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(patch),
+            });
+          }
+        }
+      }
+      // Server'dan qayta yuklash (parolsiz, toza ma'lumot)
+      const res = await fetch("/api/operators");
+      if (res.ok) {
+        const j = await res.json();
+        if (j.operators) setOperators(j.operators);
       }
     } catch (e) { console.error(e); }
-  }, []);
+  }, [operators]);
 
   const updateReports = useCallback(async (v) => {
     setReports(v);
@@ -425,7 +462,11 @@ export default function App() {
   const updateKpiRules = useCallback(async (v) => {
     setKpiRules(v);
     try {
-      await supabase.from("kpi_rules").upsert({ id: 1, late_fine: v.lateFine, task_rate: v.taskRate, quality_coef: v.qualityCoef });
+      await fetch("/api/kpi", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lateFine: v.lateFine, taskRate: v.taskRate, qualityCoef: v.qualityCoef }),
+      });
     } catch (e) { console.error(e); }
   }, []);
 
@@ -435,15 +476,34 @@ export default function App() {
   const t = dk ? THEMES.dark : THEMES.light;
   const T = (key) => TRANSLATIONS[lang][key] || key;
 
-  const doLogin = (l, p) => {
-    if (l === ADMIN_USER.login && p === ADMIN_USER.password) { setUser(ADMIN_USER); return true; }
-    const cleanPhone = l.replace(/\D/g, "").replace(/^998/, "");
-    const o = operators.find(x =>
-      (x.login === l || x.phone === cleanPhone || x.phone === l)
-      && x.password === p && x.is_active
-    );
-    if (o) { setUser(o); return true; }
-    return false;
+  const doLogin = async (l, p) => {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: l, password: p }),
+      });
+      if (!res.ok) return { ok: false, code: (await res.json().catch(() => ({}))).error || "invalid_credentials" };
+      const j = await res.json();
+      setUser(j.user);
+      // Admin bo'lsa — operatorlarni yuklash
+      if (j.user?.role === "admin") {
+        const r = await fetch("/api/operators");
+        if (r.ok) {
+          const jo = await r.json();
+          if (jo.operators) setOperators(jo.operators);
+        }
+      }
+      return { ok: true };
+    } catch (e) {
+      console.error(e);
+      return { ok: false, code: "network_error" };
+    }
+  };
+
+  const doLogout = async () => {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
+    setUser(null);
   };
 
   const calcDailyAmount = (report) => {
@@ -549,7 +609,7 @@ export default function App() {
           </div>
           
           <div style={{ padding: 10, borderTop: `1px solid ${t.border}` }}>
-            <button onClick={() => { setUser(null); setMenuOpen(false); }} style={{ width: "100%", padding: 10, background: `${t.danger}15`, border: "none", borderRadius: 8, color: t.danger, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
+            <button onClick={() => { doLogout(); setMenuOpen(false); }} style={{ width: "100%", padding: 10, background: `${t.danger}15`, border: "none", borderRadius: 8, color: t.danger, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
               🚪 {T("logout")}
             </button>
           </div>
@@ -599,8 +659,20 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
   const [l, setL] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const go = () => { if (!onLogin(l, p)) setErr(T("loginError")); };
+  const go = async () => {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await onLogin(l, p);
+      if (!r?.ok) {
+        if (r?.code === "rate_limited") setErr(T("loginError") + " (urinishlar ko'p — biroz kuting)");
+        else setErr(T("loginError"));
+      }
+    } finally { setBusy(false); }
+  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bg, padding: 20, fontFamily: "'Inter', sans-serif" }}>
@@ -787,11 +859,17 @@ function Operators({ t, T, operators, setOperators }) {
   const [form, setForm] = useState({ login: "", password: "", full_name: "", phone: "", emoji: "👩‍💼" });
 
   const openNew = () => { setForm({ login: "", password: "", full_name: "", phone: "", emoji: "👩‍💼" }); setEditing(null); setShow(true); };
-  const openEdit = (op) => { setForm(op); setEditing(op); setShow(true); };
+  const openEdit = (op) => { setForm({ ...op, password: "" }); setEditing(op); setShow(true); };
   const save = () => {
-    if (!form.login || !form.password || !form.full_name) return;
-    if (editing) setOperators(operators.map(o => o.id === editing.id ? { ...o, ...form } : o));
-    else setOperators([...operators, { ...form, id: uid(), role: "operator", is_active: true }]);
+    if (!form.login || !form.full_name) return;
+    if (!editing && !form.password) return;
+    if (editing) {
+      const merged = { ...editing, ...form };
+      if (!form.password) delete merged.password;
+      setOperators(operators.map(o => o.id === editing.id ? merged : o));
+    } else {
+      setOperators([...operators, { ...form, id: uid(), role: "operator", is_active: true }]);
+    }
     setShow(false);
   };
   const toggleActive = (id) => setOperators(operators.map(o => o.id === id ? { ...o, is_active: !o.is_active } : o));
@@ -1655,13 +1733,43 @@ function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
 
 // ═══ SETTINGS ═══
 function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lang, setLang }) {
-  const [form, setForm] = useState({ full_name: user.full_name, login: user.login, password: user.password, emoji: user.emoji });
+  const [form, setForm] = useState({ full_name: user.full_name, emoji: user.emoji, phone: user.phone });
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
+  const [pwMsg, setPwMsg] = useState("");
 
-  const save = () => {
-    setUser({ ...user, ...form });
-    if (user.role === "operator") setOperators(operators.map(o => o.id === user.id ? { ...o, ...form } : o));
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  const save = async () => {
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        setUser({ ...user, ...form });
+        setSaved(true); setTimeout(() => setSaved(false), 2000);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const changePassword = async () => {
+    setPwMsg("");
+    if (!pwForm.currentPassword || !pwForm.newPassword) return;
+    try {
+      const res = await fetch("/api/me/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pwForm),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setPwMsg("✓");
+        setPwForm({ currentPassword: "", newPassword: "" });
+        setTimeout(() => setPwMsg(""), 2000);
+      } else {
+        setPwMsg(j.error === "invalid_current_password" ? "Joriy parol noto'g'ri" : (j.error === "password_too_short" ? "Parol qisqa" : "Xato"));
+      }
+    } catch (e) { setPwMsg("Tarmoq xatosi"); }
   };
 
   return (
@@ -1674,8 +1782,8 @@ function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lan
           </div>
           <div style={{ flex: 1, minWidth: 240, display: "grid", gap: 12 }}>
             <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("fullName")}</label><Input t={t} value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("loginField")}</label><Input t={t} value={form.login} onChange={e => setForm({ ...form, login: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("password")}</label><Input t={t} type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("loginField")}</label><Input t={t} value={user.login} disabled style={{ opacity: 0.6 }} /></div>
+            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("phone")}</label><Input t={t} value={form.phone || ""} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="901234567" /></div>
             <div>
               <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("changePhoto")}</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -1684,6 +1792,16 @@ function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lan
             </div>
             <Btn t={t} onClick={save}>✓ {saved ? T("save") + "!" : T("save")}</Btn>
           </div>
+        </div>
+      </Card>
+
+      <Card t={t} style={{ marginBottom: 18 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🔒 {T("password")}</h3>
+        <div style={{ display: "grid", gap: 12, maxWidth: 360 }}>
+          <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>Joriy parol</label><Input t={t} type="password" value={pwForm.currentPassword} onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })} /></div>
+          <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>Yangi parol</label><Input t={t} type="password" value={pwForm.newPassword} onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })} /></div>
+          {pwMsg && <div style={{ fontSize: 12, color: pwMsg === "✓" ? t.success : t.danger }}>{pwMsg}</div>}
+          <Btn t={t} onClick={changePassword}>{T("save")}</Btn>
         </div>
       </Card>
 
