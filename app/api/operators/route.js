@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "../../lib/server-supabase.js";
 import { requireAdmin, ok, bad } from "../../lib/api-helpers.js";
 import { hashPassword } from "../../lib/auth.js";
+import { audit } from "../../lib/audit.js";
 
 const SAFE_COLS = "id, login, full_name, phone, emoji, role, is_active, lang, theme, created_at";
 
@@ -38,5 +39,6 @@ export async function POST(req) {
     return bad("server_error", 500);
   }
   const { data } = await supabaseAdmin.from("users").select(SAFE_COLS).eq("id", id).single();
+  await audit(req, r.user, "operator_create", "users", id, { login: data?.login });
   return ok({ operator: data });
 }

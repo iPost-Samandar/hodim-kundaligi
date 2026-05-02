@@ -366,6 +366,52 @@ function App() {
     })();
   }, [toast]);
 
+  // ═══ Realtime: jadvallar o'zgarganda avtomatik yangilash ═══
+  useEffect(() => {
+    if (!user) return;
+    const applyChange = (setter) => (payload) => {
+      setter((prev) => {
+        const ev = payload.eventType;
+        if (ev === "INSERT") {
+          if (prev.find((x) => x.id === payload.new.id)) return prev;
+          return [payload.new, ...prev];
+        }
+        if (ev === "UPDATE") {
+          return prev.map((x) => (x.id === payload.new.id ? { ...x, ...payload.new } : x));
+        }
+        if (ev === "DELETE") {
+          return prev.filter((x) => x.id !== payload.old.id);
+        }
+        return prev;
+      });
+    };
+
+    const channels = [
+      supabase.channel("rt-announcements")
+        .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, applyChange(setAnnouncements))
+        .subscribe(),
+      supabase.channel("rt-reports")
+        .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, applyChange(setReports))
+        .subscribe(),
+      supabase.channel("rt-complaints")
+        .on("postgres_changes", { event: "*", schema: "public", table: "complaints" }, applyChange(setComplaints))
+        .subscribe(),
+      supabase.channel("rt-messages")
+        .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (payload) => {
+          if (payload.eventType === "INSERT") {
+            setMessages((prev) => prev.find((x) => x.id === payload.new.id) ? prev : [payload.new, ...prev]);
+            // Faqat menga yoki broadcast bo'lsa toast
+            const m = payload.new;
+            if ((m.to_user_id === user.id || !m.to_user_id) && m.from_user_id !== user.id) {
+              toast.info("Yangi xabar keldi");
+            }
+          } else applyChange(setMessages)(payload);
+        })
+        .subscribe(),
+    ];
+    return () => { channels.forEach((c) => supabase.removeChannel(c)); };
+  }, [user, toast]);
+
   // ═══ Operatorlar — server-side API orqali ═══
   // Yangi yondashuv: yagona "diff sync" o'rniga, har action alohida API call qiladi.
   // Bu funksiya orqaga muvofiqlik (eski kod chaqirsa) saqlash uchun: state ni o'rnatadi va
@@ -576,6 +622,7 @@ function App() {
     { id: "feedback", icon: "💡", label: T("feedback") },
     { id: "complaints", icon: "⚠️", label: T("complaints") },
     { id: "kpiRules", icon: "🧮", label: T("kpiRules") },
+    { id: "audit", icon: "🪵", label: "Audit log" },
     { id: "settings", icon: "⚙️", label: T("settings") },
   ];
 
@@ -677,6 +724,7 @@ function App() {
             {tab === "feedback" && <Feedback t={t} T={T} isAdmin={isAdmin} user={user} feedbackList={feedbackList} setFeedbackList={updateFeedback} operators={operators} />}
             {tab === "complaints" && <Complaints t={t} T={T} isAdmin={isAdmin} complaints={complaints} setComplaints={updateComplaints} user={user} operators={operators} />}
             {tab === "kpiRules" && isAdmin && <KpiRulesPanel t={t} T={T} kpiRules={kpiRules} setKpiRules={updateKpiRules} />}
+            {tab === "audit" && isAdmin && <AuditLog t={t} T={T} />}
             {tab === "settings" && <Settings t={t} T={T} user={user} setUser={setUser} operators={operators} setOperators={updateOperators} dk={dk} setDk={updateDk} lang={lang} setLang={updateLang} />}
           </div>
         </div>
@@ -1186,17 +1234,37 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
 function Salary({ t, T, isAdmin, user, operators, reports, calcDailyAmount, kpiRules }) {
   const currentMonth = today().slice(0, 7);
   const [selMonth, setSelMonth] = useState(currentMonth);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const toast = useToast();
   const targetOps = isAdmin ? operators : operators.filter(o => o.id === user.id);
+
+  const exportPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const { generateMonthlyReport } = await import("./lib/pdf.js");
+      generateMonthlyReport({ operators, reports, kpiRules, calcDailyAmount, monthYM: selMonth });
+      toast.success("PDF yaratildi");
+    } catch (e) {
+      console.error(e);
+      toast.error("PDF yaratishda xato");
+    } finally { setPdfBusy(false); }
+  };
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
         <Input t={t} type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)} style={{ width: 180 }} />
-        {isAdmin && <Btn t={t} variant="secondary" onClick={() => exportCSV("salary", targetOps.map(o => {
-          const myReports = reports.filter(r => r.user_id === o.id && r.date.startsWith(selMonth));
-          const total = myReports.reduce((s, r) => s + calcDailyAmount(r), 0);
-          return { name: o.full_name, days: myReports.length, total };
-        }))}>📥 {T("export")}</Btn>}
+        {isAdmin && (
+          <div style={{ display: "inline-flex", gap: 6 }}>
+            <Btn t={t} variant="secondary" onClick={exportPdf} disabled={pdfBusy}>📄 {pdfBusy ? "..." : "PDF"}</Btn>
+            <Btn t={t} variant="secondary" onClick={() => exportCSV("salary", targetOps.map(o => {
+              const myReports = reports.filter(r => r.user_id === o.id && r.date.startsWith(selMonth));
+              const total = myReports.reduce((s, r) => s + calcDailyAmount(r), 0);
+              return { name: o.full_name, days: myReports.length, total };
+            }))}>📥 {T("export")}</Btn>
+          </div>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
@@ -1778,6 +1846,89 @@ function Complaints({ t, T, isAdmin, complaints, setComplaints, user, operators 
 }
 
 // ═══ KPI RULES (Admin) ═══
+// ═══ AUDIT LOG (Admin) ═══
+function AuditLog({ t, T }) {
+  const [entries, setEntries] = useState(null);
+  const [filter, setFilter] = useState("");
+  const toast = useToast();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/audit?limit=200");
+        if (!res.ok) throw new Error(String(res.status));
+        const j = await res.json();
+        setEntries(j.entries || []);
+      } catch (e) { console.error(e); toast.error("Audit log yuklanmadi"); setEntries([]); }
+    })();
+  }, [toast]);
+
+  const fmtDate = (s) => {
+    try { return new Date(s).toLocaleString("ru-RU"); } catch { return s; }
+  };
+  const filtered = (entries || []).filter((e) => {
+    if (!filter) return true;
+    const f = filter.toLowerCase();
+    return [e.action, e.actor_login, e.entity, e.ip].some((x) => String(x || "").toLowerCase().includes(f));
+  });
+
+  const colorByAction = (a) => {
+    if (a?.includes("login_failed") || a?.includes("delete")) return t.danger;
+    if (a?.includes("login_success") || a?.includes("create")) return t.success;
+    return t.accent;
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 14, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <Input t={t} placeholder="Filter (login, action, entity)…" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ maxWidth: 320 }} />
+        <span style={{ fontSize: 12, color: t.sec }}>
+          {entries === null ? "Yuklanmoqda…" : `${filtered.length} ta yozuv`}
+        </span>
+      </div>
+
+      <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
+        {entries === null ? (
+          <div style={{ padding: 16, display: "grid", gap: 10 }}>
+            {[...Array(6)].map((_, i) => <Skeleton key={i} t={t} height={36} />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState t={t} icon="🪵" title="Yozuv yo'q" description="Filterga mos audit yozuvi topilmadi." />
+        ) : (
+          <div className="hk-table-wrap" style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: t.inputBg }}>
+                  <th scope="col" style={{ padding: 10, textAlign: "left", color: t.sec, fontWeight: 600 }}>Vaqt</th>
+                  <th scope="col" style={{ padding: 10, textAlign: "left", color: t.sec, fontWeight: 600 }}>Foydalanuvchi</th>
+                  <th scope="col" style={{ padding: 10, textAlign: "left", color: t.sec, fontWeight: 600 }}>Action</th>
+                  <th scope="col" style={{ padding: 10, textAlign: "left", color: t.sec, fontWeight: 600 }}>Entity</th>
+                  <th scope="col" style={{ padding: 10, textAlign: "left", color: t.sec, fontWeight: 600 }}>IP</th>
+                  <th scope="col" style={{ padding: 10, textAlign: "left", color: t.sec, fontWeight: 600 }}>Meta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((e) => (
+                  <tr key={e.id} style={{ borderTop: `1px solid ${t.border}` }}>
+                    <td style={{ padding: 10, whiteSpace: "nowrap" }}>{fmtDate(e.created_at)}</td>
+                    <td style={{ padding: 10 }}>{e.actor_login || "—"} <span style={{ color: t.sec, fontSize: 11 }}>{e.actor_role ? `(${e.actor_role})` : ""}</span></td>
+                    <td style={{ padding: 10 }}><Badge t={t} color={colorByAction(e.action)}>{e.action}</Badge></td>
+                    <td style={{ padding: 10, color: t.sec }}>{e.entity || "—"}{e.entity_id ? `:${String(e.entity_id).slice(0, 8)}` : ""}</td>
+                    <td style={{ padding: 10, color: t.sec, fontSize: 11 }}>{e.ip || "—"}</td>
+                    <td style={{ padding: 10, color: t.sec, fontSize: 11, maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {e.meta ? JSON.stringify(e.meta) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
   const [form, setForm] = useState(kpiRules);
   const [saved, setSaved] = useState(false);

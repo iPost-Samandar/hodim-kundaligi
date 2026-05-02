@@ -113,6 +113,27 @@ CREATE TABLE IF NOT EXISTS penalties (
 );
 CREATE INDEX IF NOT EXISTS idx_penalties_user ON penalties(user_id, date);
 
+-- 10. Audit log (Phase 3)
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGSERIAL PRIMARY KEY,
+  actor_id TEXT,
+  actor_login TEXT,
+  actor_role TEXT,
+  action TEXT NOT NULL,
+  entity TEXT,
+  entity_id TEXT,
+  meta JSONB,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity, entity_id);
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+-- Audit log faqat service role orqali (anon kirish yo'q)
+
 -- ═══ BOSHLANG'ICH MA'LUMOTLAR ═══
 
 -- Admin profili. Default parol: 'admin' (bcrypt hash). Birinchi kirgandan so'ng O'ZGARTIRING!
@@ -170,3 +191,20 @@ CREATE POLICY public_all ON penalties     FOR ALL USING (true) WITH CHECK (true)
 
 -- Phase 1.5 TODO: yuqoridagi public_all qoidalarini olib tashlab,
 -- har bir jadval uchun /api/* yaratish va RLS'ni faqat service role'ga ochish.
+
+-- ═══════════════════════════════════════════
+-- Realtime publications (Phase 3)
+-- ═══════════════════════════════════════════
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname='public' AND tablename = 'announcements')
+    THEN EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE announcements'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname='public' AND tablename = 'messages')
+    THEN EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE messages'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname='public' AND tablename = 'reports')
+    THEN EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE reports'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname='public' AND tablename = 'complaints')
+    THEN EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE complaints'; END IF;
+EXCEPTION WHEN undefined_object THEN
+  RAISE NOTICE 'supabase_realtime publication not present; skipping';
+END $$;

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../../lib/server-supabase.js";
 import { requireUser, requireAdmin, ok, bad } from "../../lib/api-helpers.js";
+import { audit } from "../../lib/audit.js";
 
 export async function GET() {
   const r = await requireUser();
@@ -32,5 +33,6 @@ export async function PATCH(req) {
     updated_at: new Date().toISOString(),
   });
   if (error) return bad("server_error", 500);
+  await audit(req, r.user, "kpi_update", "kpi_rules", "1", { lateFine, taskRate, qualityCoef });
   return ok({ ok: true });
 }

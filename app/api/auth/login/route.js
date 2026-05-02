@@ -7,6 +7,7 @@ import {
 import {
   ok, bad, checkLoginRateLimit, resetLoginRateLimit, clientKey,
 } from "../../../lib/api-helpers.js";
+import { audit } from "../../../lib/audit.js";
 
 export async function POST(req) {
   let body;
@@ -31,10 +32,16 @@ export async function POST(req) {
   if (error) return bad("server_error", 500);
 
   const u = users?.[0];
-  if (!u || !u.is_active) return bad("invalid_credentials", 401);
+  if (!u || !u.is_active) {
+    await audit(req, null, "login_failed", "users", null, { login, reason: u ? "inactive" : "not_found" });
+    return bad("invalid_credentials", 401);
+  }
 
   const valid = await verifyPassword(password, u.password);
-  if (!valid) return bad("invalid_credentials", 401);
+  if (!valid) {
+    await audit(req, null, "login_failed", "users", u.id, { login, reason: "wrong_password" });
+    return bad("invalid_credentials", 401);
+  }
 
   if (!isBcryptHash(u.password)) {
     const hashed = await hashPassword(password);
@@ -50,5 +57,6 @@ export async function POST(req) {
   cookies().set(opts.name, token, opts);
 
   const { password: _, ...safe } = u;
+  await audit(req, { sub: u.id, login: u.login, role: u.role }, "login_success", "users", u.id);
   return ok({ user: safe });
 }

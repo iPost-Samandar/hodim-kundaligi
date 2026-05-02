@@ -90,8 +90,23 @@ Barcha protected route'lar `hk_session` cookie talab qiladi.
 - ✅ O'zbek va Rus tili
 - ✅ Qora va Oq rejim
 
+## Phase 3 — Yangi funksiyalar
+
+- ✅ **PWA**: `/manifest.json` + `/sw.js` (network-first shell, cache-first static, API'ga keshlash yo'q). Telefon brauzerida "Install app" mavjud.
+- ✅ **Audit log**: `audit_log` jadvali, `/api/audit` (admin), 🪵 Audit log tabi. Yozuvlar: `login_success`, `login_failed`, `operator_create`, `operator_update`, `operator_delete`, `kpi_update`, `password_change`.
+- ✅ **Realtime**: announcements / messages / reports / complaints jadvallaridagi o'zgarishlar avtomatik yangilanadi (sahifani qayta yuklash shart emas). Yangi xabar — toast bildirishnoma.
+- ✅ **Oylik PDF hisobot**: Salary tabidagi 📄 PDF tugmasi. Tanlangan oydagi har operator uchun: ish kunlari, ishlar, sifat, kech qolish, summa.
+
+## Phase 3 — Keyingi seansda (sizdan kerak)
+
+- ⏳ **Web push**: VAPID kalitlari kerak. Yaratish:
+  ```bash
+  npx web-push generate-vapid-keys
+  ```
+  Hosil bo'lgan public key — `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, private — `VAPID_PRIVATE_KEY` env'ga.
+- ⏳ **SMS verification (Eskiz.uz)**: Eskiz.uz akkaunti, API token va `SENDER_ID` kerak. Parol tiklash flow uchun.
+
 ## Keyingi fazalar
 
 - **Phase 1.5**: qolgan jadvallar (reports, schedules, messages, ...) ham API orqali, RLS to'liq yopiladi
-- **Phase 2**: UX — toast, loading, empty states, error boundary, a11y, mobile
-- **Phase 3**: PWA, Realtime, audit log, oylik PDF, web push, SMS
+- **Phase 2 (qolgan)**: boshqa tablar uchun loading skeleton, empty states, mobile

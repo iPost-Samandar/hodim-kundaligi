@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "../../../lib/server-supabase.js";
 import { requireUser, ok, bad } from "../../../lib/api-helpers.js";
 import { hashPassword, verifyPassword } from "../../../lib/auth.js";
+import { audit } from "../../../lib/audit.js";
 
 export async function PATCH(req) {
   const r = await requireUser();
@@ -22,5 +23,6 @@ export async function PATCH(req) {
   const { error } = await supabaseAdmin
     .from("users").update({ password: hashed }).eq("id", r.user.sub);
   if (error) return bad("server_error", 500);
+  await audit(req, r.user, "password_change", "users", r.user.sub);
   return ok({ ok: true });
 }
