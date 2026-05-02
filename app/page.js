@@ -1,6 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
+import {
+  ToastProvider, useToast,
+  ConfirmProvider, useConfirm,
+  EmptyState, Skeleton, ErrorBoundary, useFocusTrap,
+} from "./lib/ui.jsx";
 
 // ═══ I18N (O'zbek / Rus) ═══
 const TRANSLATIONS = {
@@ -286,7 +291,18 @@ const INITIAL_SCHEDULES = [
   { user_id: "op2", date: today(), shift_start: "14:00", shift_end: "21:00", shift_type: "evening" },
 ];
 
-export default function App() {
+export default function Page() {
+  return (
+    <ErrorBoundary>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </ErrorBoundary>
+  );
+}
+
+function App() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [dk, setDk] = useState(true);
@@ -342,10 +358,13 @@ export default function App() {
         const savedDk = localStorage.getItem("hk_dk");
         if (savedLang) setLang(savedLang);
         if (savedDk !== null) setDk(savedDk === "true");
-      } catch (e) { console.error("Load error:", e); }
+      } catch (e) {
+        console.error("Load error:", e);
+        toast.error("Ma'lumotlarni yuklashda xato. Sahifani qayta yuklang.");
+      }
       setLoading(false);
     })();
-  }, []);
+  }, [toast]);
 
   // ═══ Operatorlar — server-side API orqali ═══
   // Yangi yondashuv: yagona "diff sync" o'rniga, har action alohida API call qiladi.
@@ -399,8 +418,12 @@ export default function App() {
         const j = await res.json();
         if (j.operators) setOperators(j.operators);
       }
-    } catch (e) { console.error(e); }
-  }, [operators]);
+      toast.success("Saqlandi");
+    } catch (e) {
+      console.error(e);
+      toast.error("Saqlashda xato");
+    }
+  }, [operators, toast]);
 
   const updateReports = useCallback(async (v) => {
     setReports(v);
@@ -412,8 +435,8 @@ export default function App() {
       const deleted = existingIds.filter(id => !newIds.includes(id));
       for (const id of deleted) await supabase.from("reports").delete().eq("id", id);
       for (const r of v) await supabase.from("reports").upsert(r);
-    } catch (e) { console.error(e); }
-  }, []);
+    } catch (e) { console.error(e); toast.error("Saqlashda xato"); }
+  }, [toast]);
 
   const updateAnnouncements = useCallback(async (v) => {
     setAnnouncements(v);
@@ -422,8 +445,8 @@ export default function App() {
       const deleted = existing.map(e => e.id).filter(id => !v.find(a => a.id === id));
       for (const id of deleted) await supabase.from("announcements").delete().eq("id", id);
       for (const a of v) await supabase.from("announcements").upsert(a);
-    } catch (e) { console.error(e); }
-  }, []);
+    } catch (e) { console.error(e); toast.error("Saqlashda xato"); }
+  }, [toast]);
 
   const updateComplaints = useCallback(async (v) => {
     setComplaints(v);
@@ -432,8 +455,8 @@ export default function App() {
       const deleted = existing.map(e => e.id).filter(id => !v.find(c => c.id === id));
       for (const id of deleted) await supabase.from("complaints").delete().eq("id", id);
       for (const c of v) await supabase.from("complaints").upsert(c);
-    } catch (e) { console.error(e); }
-  }, []);
+    } catch (e) { console.error(e); toast.error("Saqlashda xato"); }
+  }, [toast]);
 
   const updateSchedules = useCallback(async (v) => {
     setSchedules(v);
@@ -441,23 +464,26 @@ export default function App() {
       for (const s of v) {
         await supabase.from("schedules").upsert(s, { onConflict: "user_id,date" });
       }
-    } catch (e) { console.error(e); }
-  }, []);
+    } catch (e) { console.error(e); toast.error("Saqlashda xato"); }
+  }, [toast]);
 
   const updateMessages = useCallback(async (v) => {
     setMessages(v);
-    try { for (const m of v) await supabase.from("messages").upsert(m); } catch (e) { console.error(e); }
-  }, []);
+    try { for (const m of v) await supabase.from("messages").upsert(m); }
+    catch (e) { console.error(e); toast.error("Xabarni saqlashda xato"); }
+  }, [toast]);
 
   const updateFeedback = useCallback(async (v) => {
     setFeedbackList(v);
-    try { for (const f of v) await supabase.from("feedback").upsert(f); } catch (e) { console.error(e); }
-  }, []);
+    try { for (const f of v) await supabase.from("feedback").upsert(f); }
+    catch (e) { console.error(e); toast.error("Saqlashda xato"); }
+  }, [toast]);
 
   const updatePenalties = useCallback(async (v) => {
     setPenalties(v);
-    try { for (const p of v) await supabase.from("penalties").upsert(p); } catch (e) { console.error(e); }
-  }, []);
+    try { for (const p of v) await supabase.from("penalties").upsert(p); }
+    catch (e) { console.error(e); toast.error("Shtrafni saqlashda xato"); }
+  }, [toast]);
 
   const updateKpiRules = useCallback(async (v) => {
     setKpiRules(v);
@@ -467,8 +493,8 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lateFine: v.lateFine, taskRate: v.taskRate, qualityCoef: v.qualityCoef }),
       });
-    } catch (e) { console.error(e); }
-  }, []);
+    } catch (e) { console.error(e); toast.error("Saqlashda xato"); }
+  }, [toast]);
 
   const updateLang = useCallback((v) => { setLang(v); localStorage.setItem("hk_lang", v); }, []);
   const updateDk = useCallback((v) => { setDk(v); localStorage.setItem("hk_dk", String(v)); }, []);
@@ -515,11 +541,11 @@ export default function App() {
   const isAdmin = user?.role === "admin";
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bgSolid }}>
+    <div role="status" aria-live="polite" aria-label="Yuklanmoqda" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bgSolid, fontFamily: "'Inter', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: 48, height: 48, border: `3px solid ${t.accent}22`, borderTopColor: t.accent, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
-        <p style={{ color: t.sec, fontFamily: "'Inter'" }}>Yuklanmoqda...</p>
+        <div aria-hidden="true" style={{ width: 48, height: 48, border: `3px solid ${t.accent}22`, borderTopColor: t.accent, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+        <p style={{ color: t.sec }}>Yuklanmoqda...</p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -556,18 +582,23 @@ export default function App() {
   const tabs = isAdmin ? TABS_ADMIN : TABS_OP;
 
   return (
-    <>
+    <ConfirmProvider t={t}>
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: ${t.bgSolid}; color: ${t.text}; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 4px; }
         input, select, textarea { font-family: inherit; }
+        :focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
         @media (min-width: 769px) {
           .sidebar { transform: translateX(0) !important; }
           .menu-btn { display: none !important; }
           .overlay { display: none !important; }
           .main-content { margin-left: 260px !important; }
+        }
+        @media (max-width: 768px) {
+          .hk-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .hk-modal { max-width: 100% !important; max-height: 90vh; overflow-y: auto; }
         }
       `}</style>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -650,7 +681,7 @@ export default function App() {
           </div>
         </div>
       </div>
-    </>
+    </ConfirmProvider>
   );
 }
 
@@ -660,16 +691,30 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
 
   const go = async () => {
     if (busy) return;
+    if (!l || !p) {
+      setErr("Login va parolni kiriting");
+      return;
+    }
     setBusy(true);
     setErr("");
     try {
       const r = await onLogin(l, p);
       if (!r?.ok) {
-        if (r?.code === "rate_limited") setErr(T("loginError") + " (urinishlar ko'p — biroz kuting)");
-        else setErr(T("loginError"));
+        if (r?.code === "rate_limited") {
+          setErr("Urinishlar ko'p. 15 daqiqadan keyin qayta urinib ko'ring.");
+          toast.error("Login bloklandi (15 daq)");
+        } else if (r?.code === "network_error") {
+          setErr("Tarmoq xatosi. Internet aloqasini tekshiring.");
+          toast.error("Tarmoq xatosi");
+        } else {
+          setErr(T("loginError"));
+        }
+      } else {
+        toast.success("Xush kelibsiz");
       }
     } finally { setBusy(false); }
   };
@@ -691,14 +736,16 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
           <div style={{ width: 68, height: 68, background: t.danger, borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", color: "#fff", fontSize: 32 }}>📋</div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: t.text }}>{T("appName")}</h1>
         </div>
-        <div style={{ background: t.card, borderRadius: 16, padding: 28, border: `1px solid ${t.border}` }}>
-          <label style={{ fontSize: 13, color: t.sec, display: "block", marginBottom: 6 }}>{T("loginField")}</label>
-          <input value={l} onChange={e => { setL(e.target.value); setErr(""); }} style={{ width: "100%", padding: 12, background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, marginBottom: 16, outline: "none" }} />
-          <label style={{ fontSize: 13, color: t.sec, display: "block", marginBottom: 6 }}>{T("password")}</label>
-          <input type="password" value={p} onChange={e => { setP(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && go()} style={{ width: "100%", padding: 12, background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, marginBottom: 20, outline: "none" }} />
-          {err && <div style={{ background: `${t.danger}15`, color: t.danger, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{err}</div>}
-          <button onClick={go} style={{ width: "100%", padding: 12, background: t.success, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>{T("login")}</button>
-        </div>
+        <form onSubmit={(e) => { e.preventDefault(); go(); }} style={{ background: t.card, borderRadius: 16, padding: 28, border: `1px solid ${t.border}` }}>
+          <label htmlFor="hk-login-l" style={{ fontSize: 13, color: t.sec, display: "block", marginBottom: 6 }}>{T("loginField")}</label>
+          <input id="hk-login-l" autoComplete="username" value={l} onChange={e => { setL(e.target.value); setErr(""); }} style={{ width: "100%", padding: 12, background: t.inputBg, border: `1px solid ${err ? t.danger : t.border}`, borderRadius: 10, color: t.text, fontSize: 14, marginBottom: 16, outline: "none" }} />
+          <label htmlFor="hk-login-p" style={{ fontSize: 13, color: t.sec, display: "block", marginBottom: 6 }}>{T("password")}</label>
+          <input id="hk-login-p" type="password" autoComplete="current-password" value={p} onChange={e => { setP(e.target.value); setErr(""); }} style={{ width: "100%", padding: 12, background: t.inputBg, border: `1px solid ${err ? t.danger : t.border}`, borderRadius: 10, color: t.text, fontSize: 14, marginBottom: 20, outline: "none" }} />
+          {err && <div role="alert" style={{ background: `${t.danger}15`, color: t.danger, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{err}</div>}
+          <button type="submit" disabled={busy} style={{ width: "100%", padding: 12, background: busy ? `${t.success}88` : t.success, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: busy ? "wait" : "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
+            {busy ? "..." : T("login")}
+          </button>
+        </form>
 
       </div>
     </div>
@@ -737,12 +784,24 @@ function Badge({ t, color, children }) {
 }
 
 function Modal({ t, title, onClose, children, wide = false }) {
+  const trapRef = useFocusTrap(true);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+  const titleId = `hk-modal-title-${title?.replace(/\s+/g, "-").toLowerCase().slice(0, 30)}`;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 14, border: `1px solid ${t.border}`, padding: 24, width: "100%", maxWidth: wide ? 700 : 480, maxHeight: "85vh", overflow: "auto" }}>
+    <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onClick={onClose}>
+      <div ref={trapRef} className="hk-modal" onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 14, border: `1px solid ${t.border}`, padding: 24, width: "100%", maxWidth: wide ? 700 : 480, maxHeight: "85vh", overflow: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: t.sec, cursor: "pointer", fontSize: 20, padding: 4 }}>✕</button>
+          <h3 id={titleId} style={{ fontSize: 17, fontWeight: 700 }}>{title}</h3>
+          <button onClick={onClose} aria-label="Yopish" style={{ background: "transparent", border: "none", color: t.sec, cursor: "pointer", fontSize: 20, padding: 4 }}>✕</button>
         </div>
         {children}
       </div>
@@ -857,12 +916,20 @@ function Operators({ t, T, operators, setOperators }) {
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ login: "", password: "", full_name: "", phone: "", emoji: "👩‍💼" });
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const openNew = () => { setForm({ login: "", password: "", full_name: "", phone: "", emoji: "👩‍💼" }); setEditing(null); setShow(true); };
   const openEdit = (op) => { setForm({ ...op, password: "" }); setEditing(op); setShow(true); };
   const save = () => {
-    if (!form.login || !form.full_name) return;
-    if (!editing && !form.password) return;
+    if (!form.login || !form.full_name) {
+      toast.warn("Login va ism-familiya majburiy");
+      return;
+    }
+    if (!editing && !form.password) {
+      toast.warn("Yangi operator uchun parol kiriting");
+      return;
+    }
     if (editing) {
       const merged = { ...editing, ...form };
       if (!form.password) delete merged.password;
@@ -873,7 +940,17 @@ function Operators({ t, T, operators, setOperators }) {
     setShow(false);
   };
   const toggleActive = (id) => setOperators(operators.map(o => o.id === id ? { ...o, is_active: !o.is_active } : o));
-  const deleteOp = (id) => { if (confirm(T("delete") + "?")) setOperators(operators.filter(o => o.id !== id)); };
+  const deleteOp = async (id) => {
+    const op = operators.find(o => o.id === id);
+    const ok = await confirm({
+      title: T("delete") + "?",
+      message: `${op?.full_name || ""} operatorini o'chirmoqchimisiz? Bu amalni qaytarib bo'lmaydi.`,
+      confirmText: T("delete"),
+      cancelText: T("cancel"),
+      danger: true,
+    });
+    if (ok) setOperators(operators.filter(o => o.id !== id));
+  };
 
   return (
     <div>
@@ -882,15 +959,18 @@ function Operators({ t, T, operators, setOperators }) {
         <Btn t={t} variant="secondary" onClick={() => exportCSV("operators", operators)}>📥 {T("export")}</Btn>
       </div>
       <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
+        {operators.length === 0 ? (
+          <EmptyState t={t} icon="👥" title={T("noRecords")} description="Hali operator qo'shilmagan. ➕ tugmasi orqali yangisini qo'shing." />
+        ) : (
+        <div className="hk-table-wrap" style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: t.inputBg }}>
-                <th style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("fullName")}</th>
-                <th style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("loginField")}</th>
-                <th style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("phone")}</th>
-                <th style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("status")}</th>
-                <th style={{ padding: 14, textAlign: "right", fontWeight: 600, color: t.sec }}>{T("actions")}</th>
+                <th scope="col" style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("fullName")}</th>
+                <th scope="col" style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("loginField")}</th>
+                <th scope="col" style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("phone")}</th>
+                <th scope="col" style={{ padding: 14, textAlign: "left", fontWeight: 600, color: t.sec }}>{T("status")}</th>
+                <th scope="col" style={{ padding: 14, textAlign: "right", fontWeight: 600, color: t.sec }}>{T("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -907,9 +987,9 @@ function Operators({ t, T, operators, setOperators }) {
                   <td style={{ padding: 14 }}><Badge t={t} color={op.is_active ? t.success : t.mut}>{op.is_active ? T("active") : T("inactive")}</Badge></td>
                   <td style={{ padding: 14, textAlign: "right" }}>
                     <div style={{ display: "inline-flex", gap: 6 }}>
-                      <Btn t={t} variant="secondary" onClick={() => openEdit(op)}>✏️</Btn>
-                      <Btn t={t} variant={op.is_active ? "danger" : "success"} onClick={() => toggleActive(op.id)}>{op.is_active ? "🔒" : "🔓"}</Btn>
-                      <Btn t={t} variant="danger" onClick={() => deleteOp(op.id)}>🗑️</Btn>
+                      <Btn t={t} variant="secondary" onClick={() => openEdit(op)} aria-label={`${T("edit")} ${op.full_name}`}>✏️</Btn>
+                      <Btn t={t} variant={op.is_active ? "danger" : "success"} onClick={() => toggleActive(op.id)} aria-label={op.is_active ? `Bloklash: ${op.full_name}` : `Faollashtirish: ${op.full_name}`}>{op.is_active ? "🔒" : "🔓"}</Btn>
+                      <Btn t={t} variant="danger" onClick={() => deleteOp(op.id)} aria-label={`${T("delete")} ${op.full_name}`}>🗑️</Btn>
                     </div>
                   </td>
                 </tr>
@@ -917,6 +997,7 @@ function Operators({ t, T, operators, setOperators }) {
             </tbody>
           </table>
         </div>
+        )}
       </Card>
 
       {show && (
@@ -924,7 +1005,7 @@ function Operators({ t, T, operators, setOperators }) {
           <div style={{ display: "grid", gap: 12 }}>
             <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("fullName")}</label><Input t={t} value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("loginField")}</label><Input t={t} value={form.login} onChange={e => setForm({ ...form, login: e.target.value })} /></div>
-            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("password")}</label><Input t={t} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
+            <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("password")}{editing ? <span style={{ color: t.sec, fontWeight: 400 }}> (bo'sh = o'zgartirma)</span> : null}</label><Input t={t} type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} /></div>
             <div><label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 4 }}>{T("phone")}</label><Input t={t} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="901234567" /></div>
             <div>
               <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>Emoji</label>
@@ -1700,8 +1781,18 @@ function Complaints({ t, T, isAdmin, complaints, setComplaints, user, operators 
 function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
   const [form, setForm] = useState(kpiRules);
   const [saved, setSaved] = useState(false);
+  const toast = useToast();
 
-  const save = () => { setKpiRules(form); setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const save = () => {
+    if (!Number.isFinite(+form.taskRate) || !Number.isFinite(+form.qualityCoef) || !Number.isFinite(+form.lateFine)) {
+      toast.warn("To'g'ri raqamlarni kiriting");
+      return;
+    }
+    setKpiRules(form);
+    setSaved(true);
+    toast.success("KPI qoidalari saqlandi");
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   return (
     <div style={{ maxWidth: 600 }}>
@@ -1736,9 +1827,14 @@ function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lan
   const [form, setForm] = useState({ full_name: user.full_name, emoji: user.emoji, phone: user.phone });
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
+  const toast = useToast();
 
   const save = async () => {
+    if (busy) return;
+    setBusy(true);
     try {
       const res = await fetch("/api/me/profile", {
         method: "PATCH",
@@ -1747,14 +1843,30 @@ function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lan
       });
       if (res.ok) {
         setUser({ ...user, ...form });
-        setSaved(true); setTimeout(() => setSaved(false), 2000);
+        setSaved(true);
+        toast.success("Profil saqlandi");
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        toast.error("Saqlashda xato");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      toast.error("Tarmoq xatosi");
+    } finally { setBusy(false); }
   };
 
   const changePassword = async () => {
+    if (pwBusy) return;
     setPwMsg("");
-    if (!pwForm.currentPassword || !pwForm.newPassword) return;
+    if (!pwForm.currentPassword || !pwForm.newPassword) {
+      toast.warn("Joriy va yangi parolni kiriting");
+      return;
+    }
+    if (pwForm.newPassword.length < 4) {
+      toast.warn("Yangi parol kamida 4 belgi bo'lsin");
+      return;
+    }
+    setPwBusy(true);
     try {
       const res = await fetch("/api/me/password", {
         method: "PATCH",
@@ -1765,11 +1877,18 @@ function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lan
       if (res.ok) {
         setPwMsg("✓");
         setPwForm({ currentPassword: "", newPassword: "" });
+        toast.success("Parol o'zgartirildi");
         setTimeout(() => setPwMsg(""), 2000);
       } else {
-        setPwMsg(j.error === "invalid_current_password" ? "Joriy parol noto'g'ri" : (j.error === "password_too_short" ? "Parol qisqa" : "Xato"));
+        const m = j.error === "invalid_current_password" ? "Joriy parol noto'g'ri"
+          : j.error === "password_too_short" ? "Parol qisqa" : "Xato";
+        setPwMsg(m);
+        toast.error(m);
       }
-    } catch (e) { setPwMsg("Tarmoq xatosi"); }
+    } catch (e) {
+      setPwMsg("Tarmoq xatosi");
+      toast.error("Tarmoq xatosi");
+    } finally { setPwBusy(false); }
   };
 
   return (
