@@ -1086,6 +1086,7 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="hk-login-l" style={{ fontSize: 12.5, color: t.sec, display: "block", marginBottom: 8, fontWeight: 500 }}>{T("loginField")}</label>
               <Input
+                t={t}
                 id="hk-login-l"
                 autoComplete="username"
                 value={l}
@@ -1097,6 +1098,7 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
             <div style={{ marginBottom: 18 }}>
               <label htmlFor="hk-login-p" style={{ fontSize: 12.5, color: t.sec, display: "block", marginBottom: 8, fontWeight: 500 }}>{T("password")}</label>
               <Input
+                t={t}
                 id="hk-login-p"
                 type="password"
                 autoComplete="current-password"
@@ -1143,7 +1145,7 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
 // ═══════════════════════════════════════════
 // PRIMITIVE COMPONENTS — premium polish
 // ═══════════════════════════════════════════
-function Card({ t, children, style = {}, hoverable = false, ...rest }) {
+function Card({ t = THEMES.dark, children, style = {}, hoverable = false, ...rest }) {
   return (
     <div
       className={hoverable ? "hk-card hk-card-hover" : "hk-card"}
@@ -1161,7 +1163,7 @@ function Card({ t, children, style = {}, hoverable = false, ...rest }) {
   );
 }
 
-function Btn({ t, children, onClick, variant = "primary", size = "md", icon, ...rest }) {
+function Btn({ t = THEMES.dark, children, onClick, variant = "primary", size = "md", icon, ...rest }) {
   const sizes = {
     sm: { padding: "7px 12px", fontSize: 12, height: 32 },
     md: { padding: "10px 18px", fontSize: 13.5, height: 40 },
@@ -1202,7 +1204,7 @@ function Btn({ t, children, onClick, variant = "primary", size = "md", icon, ...
   );
 }
 
-function Input({ t, ...rest }) {
+function Input({ t = THEMES.dark, ...rest }) {
   return (
     <input
       {...rest}
@@ -1223,7 +1225,7 @@ function Input({ t, ...rest }) {
   );
 }
 
-function Select({ t, ...rest }) {
+function Select({ t = THEMES.dark, ...rest }) {
   return (
     <select
       {...rest}
@@ -1250,7 +1252,7 @@ function Select({ t, ...rest }) {
   );
 }
 
-function Textarea({ t, ...rest }) {
+function Textarea({ t = THEMES.dark, ...rest }) {
   return (
     <textarea
       {...rest}
@@ -1295,7 +1297,7 @@ function Badge({ t, color, children, dot = false }) {
   );
 }
 
-function Modal({ t, title, onClose, children, wide = false }) {
+function Modal({ t = THEMES.dark, title, onClose, children, wide = false }) {
   const trapRef = useFocusTrap(true);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
