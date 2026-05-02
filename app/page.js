@@ -227,39 +227,127 @@ const TRANSLATIONS = {
   },
 };
 
+// ═══════════════════════════════════════════
+// PREMIUM DESIGN TOKENS
+// ═══════════════════════════════════════════
 const THEMES = {
   light: {
     name: "light",
-    bg: "linear-gradient(135deg, #ffffff 0%, #fef2f2 50%, #fee2e2 100%)",
-    bgSolid: "#fef2f2",
-    text: "#1f1f1f",
-    sec: "#525252",
-    mut: "#a3a3a3",
+    // Surfaces (light)
+    bg: "radial-gradient(1200px 600px at 0% 0%, rgba(220,38,38,0.05) 0%, transparent 50%), radial-gradient(900px 500px at 100% 100%, rgba(99,102,241,0.04) 0%, transparent 50%), #fafafa",
+    bgSolid: "#fafafa",
     card: "#ffffff",
-    accent: "#eab308",       // sariq — asosiy tugma
-    accentSecondary: "#16a34a", // yashil — ikkinchi tugma
-    border: "rgba(220,38,38,0.15)",
-    inputBg: "#fffbeb",
-    success: "#16a34a",
-    warning: "#eab308",
+    cardElev: "#ffffff",
+    inputBg: "#f4f4f5",
+    overlay: "rgba(15, 15, 20, 0.5)",
+    // Text
+    text: "#0a0a0a",
+    sec: "#52525b",
+    mut: "#a1a1aa",
+    // Borders
+    border: "rgba(15, 15, 20, 0.08)",
+    borderStrong: "rgba(15, 15, 20, 0.14)",
+    // Brand
+    accent: "#dc2626",
+    accentHover: "#b91c1c",
+    accentSoft: "rgba(220, 38, 38, 0.08)",
+    accentGrad: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+    // Semantic
+    success: "#10b981",
+    successSoft: "rgba(16, 185, 129, 0.1)",
+    warning: "#f59e0b",
+    warningSoft: "rgba(245, 158, 11, 0.1)",
     danger: "#dc2626",
+    dangerSoft: "rgba(220, 38, 38, 0.1)",
+    info: "#3b82f6",
+    infoSoft: "rgba(59, 130, 246, 0.1)",
+    // Effects
+    shadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)",
+    shadowLg: "0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.08)",
+    glow: "0 0 0 4px rgba(220, 38, 38, 0.12)",
   },
   dark: {
     name: "dark",
-    bg: "#0f172a",
-    bgSolid: "#0f172a",
-    text: "#f1f5f9",
-    sec: "#94a3b8",
-    mut: "#64748b",
-    card: "#1e293b",
-    accent: "#3b82f6",
-    accentSecondary: "#3b82f6",
-    border: "#334155",
-    inputBg: "#0f172a",
+    // Surfaces (dark) — deep, refined, slight blue undertone
+    bg: "radial-gradient(1400px 700px at 0% 0%, rgba(220,38,38,0.08) 0%, transparent 50%), radial-gradient(1100px 600px at 100% 100%, rgba(99,102,241,0.06) 0%, transparent 50%), #07070b",
+    bgSolid: "#07070b",
+    card: "#0f0f14",
+    cardElev: "#15151c",
+    inputBg: "#0a0a10",
+    overlay: "rgba(0, 0, 0, 0.7)",
+    // Text
+    text: "#fafafa",
+    sec: "#a1a1aa",
+    mut: "#71717a",
+    // Borders
+    border: "rgba(255, 255, 255, 0.06)",
+    borderStrong: "rgba(255, 255, 255, 0.12)",
+    // Brand
+    accent: "#ef4444",
+    accentHover: "#dc2626",
+    accentSoft: "rgba(239, 68, 68, 0.12)",
+    accentGrad: "linear-gradient(135deg, #f87171 0%, #dc2626 100%)",
+    // Semantic
     success: "#10b981",
+    successSoft: "rgba(16, 185, 129, 0.14)",
     warning: "#f59e0b",
+    warningSoft: "rgba(245, 158, 11, 0.14)",
     danger: "#ef4444",
+    dangerSoft: "rgba(239, 68, 68, 0.14)",
+    info: "#60a5fa",
+    infoSoft: "rgba(96, 165, 250, 0.14)",
+    // Effects
+    shadow: "0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)",
+    shadowLg: "0 4px 24px rgba(0,0,0,0.4), 0 16px 64px rgba(0,0,0,0.5)",
+    glow: "0 0 0 4px rgba(239, 68, 68, 0.2)",
   },
+};
+
+// ═══════════════════════════════════════════
+// SVG ICON SYSTEM (Lucide-inspired)
+// ═══════════════════════════════════════════
+const Icon = ({ name, size = 18, stroke = 1.75, ...props }) => {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    report: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></>,
+    money: <><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 6v2m0 8v2"/></>,
+    calendar: <><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M16 2v4M8 2v4"/></>,
+    bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
+    mail: <><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></>,
+    bulb: <><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></>,
+    alert: <><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+    calc: <><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01M8 10h8"/></>,
+    log: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="9" cy="14" r="1"/><circle cx="9" cy="18" r="1"/><path d="M11 14h4M11 18h4"/></>,
+    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></>,
+    menu: <><path d="M3 6h18M3 12h18M3 18h18"/></>,
+    close: <><path d="M18 6 6 18M6 6l12 12"/></>,
+    plus: <><path d="M12 5v14M5 12h14"/></>,
+    edit: <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
+    trash: <><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></>,
+    lock: <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+    unlock: <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></>,
+    check: <><path d="M20 6 9 17l-5-5"/></>,
+    download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></>,
+    pdf: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h1.5a1.5 1.5 0 0 0 0-3H9v6M14 12v6h1.5a3 3 0 0 0 0-6H14z"/></>,
+    moon: <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></>,
+    sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></>,
+    search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></>,
+    chevronDown: <><path d="m6 9 6 6 6-6"/></>,
+    arrowRight: <><path d="M5 12h14M12 5l7 7-7 7"/></>,
+    sparkle: <><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></>,
+    telegram: <><path d="m22 2-7 20-4-9-9-4 20-7z"/></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></>,
+    clock: <><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>,
+  };
+  const path = paths[name];
+  if (!path) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      {path}
+    </svg>
+  );
 };
 
 const DEPARTMENTS = ["deptUzWarehouse", "deptChinaWarehouse", "deptMarketing", "deptIT", "deptOTK", "deptBTS", "deptEMU", "deptIPost", "deptLogistics"];
@@ -587,133 +675,292 @@ function App() {
   const isAdmin = user?.role === "admin";
 
   if (loading) return (
-    <div role="status" aria-live="polite" aria-label="Yuklanmoqda" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bgSolid, fontFamily: "'Inter', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <div role="status" aria-live="polite" aria-label="Yuklanmoqda" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bg, fontFamily: "'Inter', sans-serif", color: t.text }}>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       <div style={{ textAlign: "center" }}>
-        <div aria-hidden="true" style={{ width: 48, height: 48, border: `3px solid ${t.accent}22`, borderTopColor: t.accent, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
-        <p style={{ color: t.sec }}>Yuklanmoqda...</p>
+        <div aria-hidden="true" style={{
+          width: 56, height: 56,
+          background: t.accentGrad,
+          borderRadius: 16,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          color: "#fff",
+          margin: "0 auto 18px",
+          boxShadow: `0 16px 40px ${t.accentSoft}`,
+          animation: "hkSpin 1.4s ease-in-out infinite",
+        }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4" y="3" width="16" height="18" rx="2"/>
+            <path d="M8 7h8M8 11h8M8 15h5"/>
+          </svg>
+        </div>
+        <p style={{ color: t.sec, fontSize: 13, fontWeight: 500, letterSpacing: "0.01em", margin: 0 }}>Yuklanmoqda…</p>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes hkSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
   if (!user) return <Login onLogin={doLogin} dk={dk} setDk={v => updateDk(v)} lang={lang} setLang={v => updateLang(v)} t={t} T={T} />;
 
   const TABS_OP = [
-    { id: "dashboard", icon: "📊", label: T("dashboard") },
-    { id: "salary", icon: "💰", label: T("salary") },
-    { id: "schedule", icon: "📅", label: T("schedule") },
-    { id: "dailyReport", icon: "📝", label: T("dailyReport") },
-    { id: "announcements", icon: "📢", label: T("announcements") },
-    { id: "messages", icon: "✉️", label: T("messages") },
-    { id: "feedback", icon: "💡", label: T("feedback") },
-    { id: "complaints", icon: "⚠️", label: T("complaints") },
-    { id: "settings", icon: "⚙️", label: T("settings") },
+    { id: "dashboard", iconName: "dashboard", label: T("dashboard"), section: "main" },
+    { id: "salary", iconName: "money", label: T("salary"), section: "main" },
+    { id: "schedule", iconName: "calendar", label: T("schedule"), section: "main" },
+    { id: "dailyReport", iconName: "report", label: T("dailyReport"), section: "main" },
+    { id: "announcements", iconName: "bell", label: T("announcements"), section: "comm" },
+    { id: "messages", iconName: "mail", label: T("messages"), section: "comm" },
+    { id: "feedback", iconName: "bulb", label: T("feedback"), section: "comm" },
+    { id: "complaints", iconName: "alert", label: T("complaints"), section: "comm" },
+    { id: "settings", iconName: "settings", label: T("settings"), section: "system" },
   ];
 
   const TABS_ADMIN = [
-    { id: "dashboard", icon: "📊", label: T("dashboard") },
-    { id: "operators", icon: "👥", label: T("operators") },
-    { id: "dailyReport", icon: "📝", label: T("dailyReport") },
-    { id: "salary", icon: "💰", label: T("salary") },
-    { id: "schedule", icon: "📅", label: T("schedule") },
-    { id: "announcements", icon: "📢", label: T("announcements") },
-    { id: "messages", icon: "✉️", label: T("messages") },
-    { id: "feedback", icon: "💡", label: T("feedback") },
-    { id: "complaints", icon: "⚠️", label: T("complaints") },
-    { id: "kpiRules", icon: "🧮", label: T("kpiRules") },
-    { id: "audit", icon: "🪵", label: "Audit log" },
-    { id: "settings", icon: "⚙️", label: T("settings") },
+    { id: "dashboard", iconName: "dashboard", label: T("dashboard"), section: "main" },
+    { id: "operators", iconName: "users", label: T("operators"), section: "main" },
+    { id: "dailyReport", iconName: "report", label: T("dailyReport"), section: "main" },
+    { id: "salary", iconName: "money", label: T("salary"), section: "main" },
+    { id: "schedule", iconName: "calendar", label: T("schedule"), section: "main" },
+    { id: "announcements", iconName: "bell", label: T("announcements"), section: "comm" },
+    { id: "messages", iconName: "mail", label: T("messages"), section: "comm" },
+    { id: "feedback", iconName: "bulb", label: T("feedback"), section: "comm" },
+    { id: "complaints", iconName: "alert", label: T("complaints"), section: "comm" },
+    { id: "kpiRules", iconName: "calc", label: T("kpiRules"), section: "system" },
+    { id: "audit", iconName: "log", label: "Audit log", section: "system" },
+    { id: "settings", iconName: "settings", label: T("settings"), section: "system" },
   ];
 
   const tabs = isAdmin ? TABS_ADMIN : TABS_OP;
+
+  // Group tabs by section for premium sidebar
+  const tabsBySection = tabs.reduce((acc, t) => {
+    (acc[t.section || "main"] ||= []).push(t);
+    return acc;
+  }, {});
+  const SECTION_LABEL = { main: "Asosiy", comm: "Aloqa", system: "Tizim" };
 
   return (
     <ConfirmProvider t={t}>
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: ${t.bgSolid}; color: ${t.text}; }
+        html, body { font-family: 'Inter', sans-serif; background: ${t.bgSolid}; color: ${t.text}; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: "cv02","cv03","cv04","cv11"; }
+        body { font-size: 14px; line-height: 1.5; letter-spacing: -0.005em; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 4px; }
-        input, select, textarea { font-family: inherit; }
-        :focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: ${t.borderStrong}; }
+        input, select, textarea, button { font-family: inherit; }
+        :focus-visible { outline: 2px solid ${t.accent}; outline-offset: 2px; border-radius: 8px; }
+        a { color: inherit; }
+
+        /* Inputs */
+        .hk-input:hover { border-color: ${t.borderStrong} !important; }
+        .hk-input:focus { border-color: ${t.accent} !important; box-shadow: 0 0 0 4px ${t.accentSoft}; }
+
+        /* Buttons */
+        .hk-btn:not(:disabled):hover { transform: translateY(-1px); }
+        .hk-btn:not(:disabled):active { transform: translateY(0); }
+        .hk-icon-btn:hover { background: ${t.cardElev} !important; color: ${t.text} !important; border-color: ${t.borderStrong} !important; }
+
+        /* Cards */
+        .hk-card-hover:hover { border-color: ${t.borderStrong} !important; transform: translateY(-2px); box-shadow: ${t.shadowLg} !important; }
+
+        /* Sidebar nav buttons */
+        .hk-nav-btn:hover { background: ${t.cardElev} !important; color: ${t.text} !important; }
+        .hk-nav-btn[aria-current="page"] { background: ${t.accentSoft} !important; color: ${t.accent} !important; }
+
+        /* Animations */
+        @keyframes hkFadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes hkOverlayIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes hkModalIn { from { opacity: 0; transform: translateY(12px) scale(.98) } to { opacity: 1; transform: translateY(0) scale(1) } }
+        @keyframes hkSpin { to { transform: rotate(360deg) } }
+        .hk-spin { animation: hkSpin 1s linear infinite; }
+
+        /* Layout */
         @media (min-width: 769px) {
           .sidebar { transform: translateX(0) !important; }
           .menu-btn { display: none !important; }
           .overlay { display: none !important; }
-          .main-content { margin-left: 260px !important; }
+          .main-content { margin-left: 268px !important; }
         }
         @media (max-width: 768px) {
           .hk-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .hk-modal { max-width: 100% !important; max-height: 90vh; overflow-y: auto; }
         }
+
+        /* Selection */
+        ::selection { background: ${t.accentSoft}; color: ${t.text}; }
       `}</style>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
       <div style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
         {/* Mobile overlay */}
-        {menuOpen && <div className="overlay" onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 199 }} />}
-        
+        {menuOpen && <div className="overlay" onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, background: t.overlay, backdropFilter: "blur(4px)", zIndex: 199, animation: "hkOverlayIn .2s ease-out" }} />}
+
         {/* Sidebar */}
-        <div className="sidebar" style={{ width: 260, background: t.card, borderRight: `1px solid ${t.border}`, position: "fixed", top: 0, bottom: 0, left: 0, zIndex: 200, display: "flex", flexDirection: "column", overflow: "hidden", transform: menuOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.3s ease" }}>
-          <div style={{ padding: "18px 16px", borderBottom: `1px solid ${t.border}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: t.danger, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff" }}>{user.emoji}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.full_name}</div>
-                <div style={{ fontSize: 11, color: t.sec }}>{isAdmin ? T("admin") : T("operator")}</div>
-              </div>
-              <button className="menu-btn" onClick={() => setMenuOpen(false)} style={{ width: 32, height: 32, borderRadius: 8, background: `${t.danger}15`, border: "none", color: t.danger, cursor: "pointer", fontSize: 16 }}>✕</button>
+        <aside
+          className="sidebar"
+          style={{
+            width: 268, background: t.card,
+            borderRight: `1px solid ${t.border}`,
+            position: "fixed", top: 0, bottom: 0, left: 0, zIndex: 200,
+            display: "flex", flexDirection: "column", overflow: "hidden",
+            transform: menuOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.25s cubic-bezier(.2,.8,.2,1)",
+          }}
+        >
+          {/* Brand header */}
+          <div style={{ padding: "20px 18px 16px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", gap: 11 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 11,
+              background: t.accentGrad,
+              color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: `0 6px 16px ${t.accentSoft}, 0 1px 0 rgba(255,255,255,0.15) inset`,
+              flexShrink: 0,
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="3" width="16" height="18" rx="2"/>
+                <path d="M8 7h8M8 11h8M8 15h5"/>
+              </svg>
             </div>
-          </div>
-          
-          <div style={{ flex: 1, padding: "10px 8px", overflowY: "auto" }}>
-            {tabs.map(item => (
-              <button
-                key={item.id}
-                onClick={() => { setTab(item.id); setMenuOpen(false); }}
-                style={{
-                  width: "100%", padding: "10px 12px", borderRadius: 8, marginBottom: 2,
-                  background: tab === item.id ? `${t.accent}15` : "transparent",
-                  border: "none", color: tab === item.id ? t.accent : t.sec,
-                  fontSize: 13, fontWeight: tab === item.id ? 600 : 500,
-                  textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-          
-          <div style={{ padding: 10, borderTop: `1px solid ${t.border}` }}>
-            <button onClick={() => { doLogout(); setMenuOpen(false); }} style={{ width: "100%", padding: 10, background: `${t.danger}15`, border: "none", borderRadius: 8, color: t.danger, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
-              🚪 {T("logout")}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em" }}>Hodim Kundaligi</div>
+              <div style={{ fontSize: 11, color: t.mut, fontWeight: 500 }}>v2 · Premium</div>
+            </div>
+            <button
+              className="menu-btn hk-icon-btn"
+              onClick={() => setMenuOpen(false)}
+              aria-label="Menyuni yopish"
+              style={{ width: 30, height: 30, borderRadius: 8, background: "transparent", border: `1px solid ${t.border}`, color: t.sec, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+            >
+              <Icon name="close" size={14} />
             </button>
           </div>
-        </div>
+
+          {/* User card */}
+          <div style={{ padding: "14px 14px 12px" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 11,
+              padding: "10px 12px",
+              background: t.cardElev,
+              borderRadius: 12,
+              border: `1px solid ${t.border}`,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: `${t.accent}18`,
+                color: t.accent,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
+                border: `1px solid ${t.accent}25`,
+                flexShrink: 0,
+              }}>{user.emoji}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", letterSpacing: "-0.005em" }}>{user.full_name}</div>
+                <div style={{ fontSize: 11, color: t.mut, display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: t.success }} />
+                  {isAdmin ? T("admin") : T("operator")}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav sections */}
+          <nav style={{ flex: 1, padding: "4px 12px 12px", overflowY: "auto" }}>
+            {Object.keys(tabsBySection).map((sec) => (
+              <div key={sec} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: t.mut, letterSpacing: "0.06em", textTransform: "uppercase", padding: "8px 10px 6px" }}>
+                  {SECTION_LABEL[sec] || sec}
+                </div>
+                {tabsBySection[sec].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setTab(item.id); setMenuOpen(false); }}
+                    aria-current={tab === item.id ? "page" : undefined}
+                    className="hk-nav-btn"
+                    style={{
+                      width: "100%", padding: "9px 11px", borderRadius: 9, marginBottom: 1,
+                      background: "transparent",
+                      border: "none",
+                      color: t.sec,
+                      fontSize: 13, fontWeight: 500,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 11,
+                      transition: "background .15s ease, color .15s ease",
+                      letterSpacing: "-0.005em",
+                    }}
+                  >
+                    <Icon name={item.iconName} size={16} stroke={1.75} />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </nav>
+
+          {/* Logout */}
+          <div style={{ padding: 12, borderTop: `1px solid ${t.border}` }}>
+            <button
+              onClick={() => { doLogout(); setMenuOpen(false); }}
+              className="hk-nav-btn"
+              style={{
+                width: "100%", padding: "10px 12px",
+                background: "transparent",
+                border: `1px solid ${t.border}`,
+                borderRadius: 10,
+                color: t.sec,
+                cursor: "pointer",
+                fontSize: 13, fontWeight: 500,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                transition: "background .15s ease, color .15s ease, border-color .15s ease",
+              }}
+            >
+              <Icon name="logout" size={15} />
+              {T("logout")}
+            </button>
+          </div>
+        </aside>
 
         {/* Main */}
         <div className="main-content" style={{ marginLeft: 0, flex: 1, minWidth: 0 }}>
           {/* Top Bar */}
-          <div style={{ background: t.card, borderBottom: `1px solid ${t.border}`, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button className="menu-btn" onClick={() => setMenuOpen(true)} style={{ width: 36, height: 36, borderRadius: 8, background: t.inputBg, border: `1px solid ${t.border}`, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>☰</button>
-              <h1 style={{ fontSize: 16, fontWeight: 700 }}>{tabs.find(x => x.id === tab)?.label}</h1>
+          <div style={{
+            background: `${t.card}cc`,
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderBottom: `1px solid ${t.border}`,
+            padding: "14px 24px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            position: "sticky", top: 0, zIndex: 50,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <button
+                className="menu-btn hk-icon-btn"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Menyu"
+                style={{ width: 38, height: 38, borderRadius: 10, background: t.cardElev, border: `1px solid ${t.border}`, cursor: "pointer", color: t.text, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <Icon name="menu" size={18} />
+              </button>
+              <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", margin: 0 }}>{tabs.find(x => x.id === tab)?.label}</h1>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select value={lang} onChange={e => updateLang(e.target.value)} style={{ padding: "6px 8px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12, cursor: "pointer", outline: "none" }}>
+              <Select t={t} value={lang} onChange={e => updateLang(e.target.value)} style={{ width: "auto", paddingTop: 8, paddingBottom: 8, fontSize: 12.5 }}>
                 <option value="uz">🇺🇿 UZ</option>
                 <option value="ru">🇷🇺 RU</option>
-              </select>
-              <button onClick={() => updateDk(!dk)} style={{ width: 34, height: 34, borderRadius: 8, background: t.inputBg, border: `1px solid ${t.border}`, cursor: "pointer", fontSize: 14 }}>
-                {dk ? "☀️" : "🌙"}
+              </Select>
+              <button
+                onClick={() => updateDk(!dk)}
+                aria-label={dk ? "Yorug' rejim" : "Qorong'u rejim"}
+                className="hk-icon-btn"
+                style={{ width: 38, height: 38, borderRadius: 10, background: t.cardElev, border: `1px solid ${t.border}`, cursor: "pointer", color: t.text, display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <Icon name={dk ? "sun" : "moon"} size={16} />
               </button>
             </div>
           </div>
 
           {/* Content */}
-          <div style={{ padding: "16px" }}>
+          <div style={{ padding: "24px", maxWidth: 1400, margin: "0 auto" }}>
             {tab === "dashboard" && <Dashboard t={t} T={T} user={user} isAdmin={isAdmin} operators={operators} reports={reports} complaints={complaints} feedbackList={feedbackList} calcDailyAmount={calcDailyAmount} kpiRules={kpiRules} />}
             {tab === "operators" && isAdmin && <Operators t={t} T={T} operators={operators} setOperators={updateOperators} />}
             {tab === "dailyReport" && <DailyReport t={t} T={T} isAdmin={isAdmin} user={user} operators={operators} reports={reports} setReports={updateReports} calcDailyAmount={calcDailyAmount} schedules={schedules} />}
@@ -769,71 +1016,283 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: t.bg, padding: 20, fontFamily: "'Inter', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      <div style={{ position: "fixed", top: 20, right: 20, display: "flex", gap: 10 }}>
-        <select value={lang} onChange={e => setLang(e.target.value)} style={{ padding: "7px 10px", background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, cursor: "pointer", outline: "none" }}>
+    <div style={{ minHeight: "100vh", background: t.bg, fontFamily: "'Inter', sans-serif", color: t.text, position: "relative", overflow: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+      {/* Decorative gradient orbs */}
+      <div aria-hidden style={{ position: "absolute", top: -100, left: -100, width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle, ${t.accent}22 0%, transparent 70%)`, filter: "blur(60px)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: -150, right: -150, width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${t.info}18 0%, transparent 70%)`, filter: "blur(80px)", pointerEvents: "none" }} />
+
+      {/* Top bar */}
+      <div style={{ position: "absolute", top: 24, right: 24, display: "flex", gap: 10, zIndex: 2 }}>
+        <Select t={t} value={lang} onChange={e => setLang(e.target.value)} style={{ width: "auto", paddingTop: 8, paddingBottom: 8, fontSize: 13 }}>
           <option value="uz">🇺🇿 O'zbek</option>
           <option value="ru">🇷🇺 Русский</option>
-        </select>
-        <button onClick={() => setDk(!dk)} style={{ width: 36, height: 36, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, cursor: "pointer", fontSize: 16 }}>
-          {dk ? "☀️" : "🌙"}
+        </Select>
+        <button
+          onClick={() => setDk(!dk)}
+          aria-label={dk ? "Yorug' rejim" : "Qorong'u rejim"}
+          className="hk-icon-btn"
+          style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: t.card, border: `1px solid ${t.border}`,
+            color: t.text, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            transition: "background .15s ease, border-color .15s ease",
+            boxShadow: t.shadow,
+          }}
+        >
+          <Icon name={dk ? "sun" : "moon"} size={17} />
         </button>
       </div>
-      <div style={{ width: "100%", maxWidth: 400 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ width: 68, height: 68, background: t.danger, borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", color: "#fff", fontSize: 32 }}>📋</div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: t.text }}>{T("appName")}</h1>
-        </div>
-        <form onSubmit={(e) => { e.preventDefault(); go(); }} style={{ background: t.card, borderRadius: 16, padding: 28, border: `1px solid ${t.border}` }}>
-          <label htmlFor="hk-login-l" style={{ fontSize: 13, color: t.sec, display: "block", marginBottom: 6 }}>{T("loginField")}</label>
-          <input id="hk-login-l" autoComplete="username" value={l} onChange={e => { setL(e.target.value); setErr(""); }} style={{ width: "100%", padding: 12, background: t.inputBg, border: `1px solid ${err ? t.danger : t.border}`, borderRadius: 10, color: t.text, fontSize: 14, marginBottom: 16, outline: "none" }} />
-          <label htmlFor="hk-login-p" style={{ fontSize: 13, color: t.sec, display: "block", marginBottom: 6 }}>{T("password")}</label>
-          <input id="hk-login-p" type="password" autoComplete="current-password" value={p} onChange={e => { setP(e.target.value); setErr(""); }} style={{ width: "100%", padding: 12, background: t.inputBg, border: `1px solid ${err ? t.danger : t.border}`, borderRadius: 10, color: t.text, fontSize: 14, marginBottom: 20, outline: "none" }} />
-          {err && <div role="alert" style={{ background: `${t.danger}15`, color: t.danger, padding: 10, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{err}</div>}
-          <button type="submit" disabled={busy} style={{ width: "100%", padding: 12, background: busy ? `${t.success}88` : t.success, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: busy ? "wait" : "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
-            {busy ? "..." : T("login")}
-          </button>
-          <button type="button" onClick={() => setForgotOpen(true)} style={{ width: "100%", marginTop: 12, padding: 8, background: "transparent", border: "none", color: t.sec, cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>
-            Parol unutdim?
-          </button>
-        </form>
-        {forgotOpen && <ForgotPassword t={t} onClose={() => setForgotOpen(false)} initialLogin={l} />}
 
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative", zIndex: 1 }}>
+        <div style={{ width: "100%", maxWidth: 420 }}>
+
+          {/* Hero brand */}
+          <div style={{ textAlign: "center", marginBottom: 36, animation: "hkFadeUp .5s cubic-bezier(.2,.8,.2,1)" }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 76, height: 76,
+              background: t.accentGrad,
+              borderRadius: 22,
+              marginBottom: 22,
+              color: "#fff",
+              boxShadow: `0 16px 48px ${t.accentSoft}, 0 1px 0 rgba(255,255,255,0.15) inset`,
+              transform: "rotate(-3deg)",
+            }}>
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="3" width="16" height="18" rx="2"/>
+                <path d="M8 7h8M8 11h8M8 15h5"/>
+                <circle cx="16" cy="3" r="1.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <h1 style={{ fontSize: 32, fontWeight: 800, color: t.text, letterSpacing: "-0.03em", margin: 0, marginBottom: 8 }}>{T("appName")}</h1>
+            <p style={{ fontSize: 14, color: t.sec, margin: 0, lineHeight: 1.5 }}>Hodimlar boshqaruv tizimiga xush kelibsiz</p>
+          </div>
+
+          {/* Card */}
+          <form
+            onSubmit={(e) => { e.preventDefault(); go(); }}
+            style={{
+              background: t.cardElev,
+              borderRadius: 20,
+              padding: 32,
+              border: `1px solid ${t.border}`,
+              boxShadow: t.shadowLg,
+              animation: "hkFadeUp .6s .1s cubic-bezier(.2,.8,.2,1) both",
+            }}
+          >
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="hk-login-l" style={{ fontSize: 12.5, color: t.sec, display: "block", marginBottom: 8, fontWeight: 500 }}>{T("loginField")}</label>
+              <Input
+                id="hk-login-l"
+                autoComplete="username"
+                value={l}
+                onChange={e => { setL(e.target.value); setErr(""); }}
+                placeholder="login yoki +998 90 123 45 67"
+                style={{ borderColor: err ? t.danger : t.border }}
+              />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label htmlFor="hk-login-p" style={{ fontSize: 12.5, color: t.sec, display: "block", marginBottom: 8, fontWeight: 500 }}>{T("password")}</label>
+              <Input
+                id="hk-login-p"
+                type="password"
+                autoComplete="current-password"
+                value={p}
+                onChange={e => { setP(e.target.value); setErr(""); }}
+                placeholder="••••••••"
+                style={{ borderColor: err ? t.danger : t.border }}
+              />
+            </div>
+            {err && (
+              <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: 8, background: t.dangerSoft, color: t.danger, padding: "10px 12px", borderRadius: 10, marginBottom: 16, fontSize: 12.5, border: `1px solid ${t.danger}33`, lineHeight: 1.4 }}>
+                <Icon name="alert" size={16} />
+                <span>{err}</span>
+              </div>
+            )}
+            <Btn t={t} variant="primary" size="lg" type="submit" disabled={busy} style={{ width: "100%" }}>
+              {busy ? "Tekshirilmoqda…" : <>{T("login")} <Icon name="arrowRight" size={16} /></>}
+            </Btn>
+            <button
+              type="button"
+              onClick={() => setForgotOpen(true)}
+              style={{
+                width: "100%", marginTop: 14, padding: 8,
+                background: "transparent", border: "none",
+                color: t.sec, cursor: "pointer", fontSize: 12.5,
+                fontWeight: 500,
+              }}
+            >
+              Parol unutdim?
+            </button>
+          </form>
+
+          {/* Footer hint */}
+          <div style={{ textAlign: "center", marginTop: 28, fontSize: 11.5, color: t.mut, animation: "hkFadeUp .7s .2s cubic-bezier(.2,.8,.2,1) both" }}>
+            🛡️ Xavfsiz · 📨 Telegram tasdiqlash · 📱 PWA
+          </div>
+        </div>
+        {forgotOpen && <ForgotPassword t={t} onClose={() => setForgotOpen(false)} initialLogin={l} />}
       </div>
     </div>
   );
 }
 
-// ═══ COMPONENTS ═══
-function Card({ t, children, style = {} }) {
-  return <div style={{ background: t.card, borderRadius: 12, border: `1px solid ${t.border}`, padding: 20, ...style }}>{children}</div>;
+// ═══════════════════════════════════════════
+// PRIMITIVE COMPONENTS — premium polish
+// ═══════════════════════════════════════════
+function Card({ t, children, style = {}, hoverable = false, ...rest }) {
+  return (
+    <div
+      className={hoverable ? "hk-card hk-card-hover" : "hk-card"}
+      style={{
+        background: t.card,
+        borderRadius: 16,
+        border: `1px solid ${t.border}`,
+        padding: 22,
+        boxShadow: t.shadow,
+        transition: "border-color .2s ease, transform .2s ease, box-shadow .2s ease",
+        ...style,
+      }}
+      {...rest}
+    >{children}</div>
+  );
 }
 
-function Btn({ t, children, onClick, variant = "primary", ...rest }) {
-  const styles = {
-    primary: { background: t.accent, color: t.name === "light" ? "#1f1f1f" : "#fff", fontWeight: 700 },
-    secondary: { background: t.inputBg, color: t.text, border: `1px solid ${t.border}` },
-    danger: { background: `${t.danger}15`, color: t.danger, border: `1px solid ${t.danger}30` },
-    success: { background: t.success, color: "#fff", fontWeight: 700 },
+function Btn({ t, children, onClick, variant = "primary", size = "md", icon, ...rest }) {
+  const sizes = {
+    sm: { padding: "7px 12px", fontSize: 12, height: 32 },
+    md: { padding: "10px 18px", fontSize: 13.5, height: 40 },
+    lg: { padding: "13px 22px", fontSize: 14.5, height: 48 },
+    icon: { padding: 0, width: 36, height: 36, fontSize: 13 },
   };
-  return <button onClick={onClick} {...rest} style={{ padding: "10px 18px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: variant === "primary" || variant === "success" ? "0 2px 6px rgba(0,0,0,0.1)" : "none", ...styles[variant] }}>{children}</button>;
+  const variants = {
+    primary: { background: t.accentGrad, color: "#fff", border: "none", boxShadow: `0 1px 0 rgba(255,255,255,0.1) inset, 0 6px 16px ${t.accentSoft}`, fontWeight: 600 },
+    secondary: { background: t.cardElev, color: t.text, border: `1px solid ${t.border}`, fontWeight: 500 },
+    ghost: { background: "transparent", color: t.text, border: "1px solid transparent", fontWeight: 500 },
+    danger: { background: t.dangerSoft, color: t.danger, border: `1px solid ${t.danger}33`, fontWeight: 500 },
+    success: { background: t.success, color: "#fff", border: "none", boxShadow: `0 1px 0 rgba(255,255,255,0.1) inset, 0 6px 16px ${t.successSoft}`, fontWeight: 600 },
+  };
+  return (
+    <button
+      onClick={onClick}
+      {...rest}
+      className="hk-btn"
+      style={{
+        ...sizes[size],
+        ...variants[variant],
+        borderRadius: 10,
+        cursor: rest.disabled ? "not-allowed" : "pointer",
+        opacity: rest.disabled ? 0.55 : 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        letterSpacing: "-0.005em",
+        whiteSpace: "nowrap",
+        transition: "transform .12s ease, box-shadow .2s ease, background .2s ease, opacity .2s ease",
+        ...rest.style,
+      }}
+    >
+      {icon && <Icon name={icon} size={size === "lg" ? 18 : size === "sm" ? 14 : 16} />}
+      {children}
+    </button>
+  );
 }
 
 function Input({ t, ...rest }) {
-  return <input {...rest} style={{ width: "100%", padding: "10px 12px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: "none", ...rest.style }} />;
+  return (
+    <input
+      {...rest}
+      className="hk-input"
+      style={{
+        width: "100%",
+        padding: "11px 14px",
+        background: t.inputBg,
+        border: `1px solid ${t.border}`,
+        borderRadius: 10,
+        color: t.text,
+        fontSize: 13.5,
+        outline: "none",
+        transition: "border-color .15s ease, box-shadow .15s ease, background .15s ease",
+        ...rest.style,
+      }}
+    />
+  );
 }
 
 function Select({ t, ...rest }) {
-  return <select {...rest} style={{ width: "100%", padding: "10px 12px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: "none", cursor: "pointer", ...rest.style }} />;
+  return (
+    <select
+      {...rest}
+      className="hk-input"
+      style={{
+        width: "100%",
+        padding: "11px 14px",
+        background: t.inputBg,
+        border: `1px solid ${t.border}`,
+        borderRadius: 10,
+        color: t.text,
+        fontSize: 13.5,
+        outline: "none",
+        cursor: "pointer",
+        transition: "border-color .15s ease, box-shadow .15s ease",
+        appearance: "none",
+        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(t.sec)}' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 12px center",
+        paddingRight: 36,
+        ...rest.style,
+      }}
+    />
+  );
 }
 
 function Textarea({ t, ...rest }) {
-  return <textarea {...rest} style={{ width: "100%", padding: "10px 12px", background: t.inputBg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: "none", minHeight: 80, resize: "vertical", ...rest.style }} />;
+  return (
+    <textarea
+      {...rest}
+      className="hk-input"
+      style={{
+        width: "100%",
+        padding: "11px 14px",
+        background: t.inputBg,
+        border: `1px solid ${t.border}`,
+        borderRadius: 10,
+        color: t.text,
+        fontSize: 13.5,
+        outline: "none",
+        minHeight: 90,
+        resize: "vertical",
+        fontFamily: "inherit",
+        lineHeight: 1.5,
+        transition: "border-color .15s ease, box-shadow .15s ease",
+        ...rest.style,
+      }}
+    />
+  );
 }
 
-function Badge({ t, color, children }) {
-  return <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: `${color}15`, color, border: `1px solid ${color}30` }}>{children}</span>;
+function Badge({ t, color, children, dot = false }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "3px 10px",
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: 600,
+      letterSpacing: "0.01em",
+      background: `${color}15`,
+      color,
+      border: `1px solid ${color}30`,
+      lineHeight: 1.4,
+    }}>
+      {dot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />}
+      {children}
+    </span>
+  );
 }
 
 function Modal({ t, title, onClose, children, wide = false }) {
@@ -850,11 +1309,54 @@ function Modal({ t, title, onClose, children, wide = false }) {
   }, [onClose]);
   const titleId = `hk-modal-title-${title?.replace(/\s+/g, "-").toLowerCase().slice(0, 30)}`;
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div ref={trapRef} className="hk-modal" onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 14, border: `1px solid ${t.border}`, padding: 24, width: "100%", maxWidth: wide ? 700 : 480, maxHeight: "85vh", overflow: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h3 id={titleId} style={{ fontSize: 17, fontWeight: 700 }}>{title}</h3>
-          <button onClick={onClose} aria-label="Yopish" style={{ background: "transparent", border: "none", color: t.sec, cursor: "pointer", fontSize: 20, padding: 4 }}>✕</button>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      style={{
+        position: "fixed", inset: 0,
+        background: t.overlay,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1000, padding: 20,
+        animation: "hkOverlayIn .2s ease-out",
+      }}
+      onClick={onClose}
+    >
+      <div
+        ref={trapRef}
+        className="hk-modal"
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: t.cardElev,
+          borderRadius: 20,
+          border: `1px solid ${t.border}`,
+          padding: 28,
+          width: "100%",
+          maxWidth: wide ? 720 : 480,
+          maxHeight: "85vh",
+          overflow: "auto",
+          boxShadow: t.shadowLg,
+          animation: "hkModalIn .25s cubic-bezier(.2,.8,.2,1)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+          <h3 id={titleId} style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.015em", margin: 0 }}>{title}</h3>
+          <button
+            onClick={onClose}
+            aria-label="Yopish"
+            className="hk-icon-btn"
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: "transparent", border: `1px solid ${t.border}`,
+              color: t.sec, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              transition: "background .15s ease, color .15s ease, border-color .15s ease",
+            }}
+          >
+            <Icon name="close" size={16} />
+          </button>
         </div>
         {children}
       </div>
@@ -862,15 +1364,27 @@ function Modal({ t, title, onClose, children, wide = false }) {
   );
 }
 
-function StatCard({ t, icon, label, value, color, sub }) {
+function StatCard({ t, icon, label, value, color, sub, iconName }) {
+  const tone = color || t.accent;
   return (
-    <Card t={t} style={{ flex: 1, minWidth: 180 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</div>
-        <span style={{ fontSize: 12, color: t.sec, fontWeight: 500 }}>{label}</span>
+    <Card t={t} hoverable style={{ flex: 1, minWidth: 180, position: "relative", overflow: "hidden" }}>
+      <div aria-hidden style={{ position: "absolute", top: -40, right: -40, width: 140, height: 140, borderRadius: "50%", background: `${tone}10`, filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 11,
+            background: `${tone}18`,
+            color: tone,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            border: `1px solid ${tone}25`,
+          }}>
+            {iconName ? <Icon name={iconName} size={18} /> : <span style={{ fontSize: 18 }}>{icon}</span>}
+          </div>
+          <span style={{ fontSize: 12, color: t.sec, fontWeight: 500, letterSpacing: "0.01em", textTransform: "uppercase" }}>{label}</span>
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.1 }}>{value}</div>
+        {sub && <div style={{ fontSize: 12, color: t.mut, marginTop: 6 }}>{sub}</div>}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.5px" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: t.mut, marginTop: 3 }}>{sub}</div>}
     </Card>
   );
 }
