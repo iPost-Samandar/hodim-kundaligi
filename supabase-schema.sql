@@ -193,6 +193,30 @@ CREATE POLICY public_all ON penalties     FOR ALL USING (true) WITH CHECK (true)
 -- har bir jadval uchun /api/* yaratish va RLS'ni faqat service role'ga ochish.
 
 -- ═══════════════════════════════════════════
+-- Telegram bot va parol tiklash (Phase 3)
+-- ═══════════════════════════════════════════
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_link_expires_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_tg ON users(telegram_chat_id);
+CREATE INDEX IF NOT EXISTS idx_users_tg_token ON users(telegram_link_token) WHERE telegram_link_token IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  attempts INTEGER DEFAULT 0,
+  ip TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_prc_user ON password_reset_codes(user_id, created_at DESC);
+ALTER TABLE password_reset_codes ENABLE ROW LEVEL SECURITY;
+-- (RLS policy yo'q = anon kirish yopiq, faqat service role)
+
+-- ═══════════════════════════════════════════
 -- Realtime publications (Phase 3)
 -- ═══════════════════════════════════════════
 DO $$

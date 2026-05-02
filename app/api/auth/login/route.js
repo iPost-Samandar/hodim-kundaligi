@@ -25,7 +25,7 @@ export async function POST(req) {
   const cleanPhone = login.replace(/\D/g, "").replace(/^998/, "");
   const { data: users, error } = await supabaseAdmin
     .from("users")
-    .select("id, login, password, full_name, phone, emoji, role, is_active, lang, theme")
+    .select("id, login, password, full_name, phone, emoji, role, is_active, lang, theme, telegram_chat_id, telegram_link_token, telegram_link_expires_at")
     .or(`login.eq.${login},phone.eq.${login},phone.eq.${cleanPhone}`)
     .limit(1);
 
@@ -56,7 +56,8 @@ export async function POST(req) {
   const opts = sessionCookieOptions();
   cookies().set(opts.name, token, opts);
 
-  const { password: _, ...safe } = u;
+  const { password: _pw, telegram_chat_id, telegram_link_token, telegram_link_expires_at, ...rest } = u;
+  const safe = { ...rest, telegram_linked: Boolean(telegram_chat_id) };
   await audit(req, { sub: u.id, login: u.login, role: u.role }, "login_success", "users", u.id);
   return ok({ user: safe });
 }

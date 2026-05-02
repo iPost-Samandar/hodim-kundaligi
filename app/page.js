@@ -739,6 +739,7 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const toast = useToast();
 
   const go = async () => {
@@ -793,7 +794,11 @@ function Login({ onLogin, dk, setDk, lang, setLang, t, T }) {
           <button type="submit" disabled={busy} style={{ width: "100%", padding: 12, background: busy ? `${t.success}88` : t.success, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: busy ? "wait" : "pointer", boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
             {busy ? "..." : T("login")}
           </button>
+          <button type="button" onClick={() => setForgotOpen(true)} style={{ width: "100%", marginTop: 12, padding: 8, background: "transparent", border: "none", color: t.sec, cursor: "pointer", fontSize: 12, textDecoration: "underline" }}>
+            Parol unutdim?
+          </button>
         </form>
+        {forgotOpen && <ForgotPassword t={t} onClose={() => setForgotOpen(false)} initialLogin={l} />}
 
       </div>
     </div>
@@ -1974,6 +1979,174 @@ function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
 }
 
 // ═══ SETTINGS ═══
+function ForgotPassword({ t, onClose, initialLogin = "" }) {
+  const [step, setStep] = useState("ask");
+  const [login, setLogin] = useState(initialLogin);
+  const [code, setCode] = useState("");
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const toast = useToast();
+
+  const requestCode = async () => {
+    if (busy || !login.trim()) return;
+    setBusy(true); setErr("");
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: login.trim() }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 429) {
+        setErr("Urinishlar ko'p. Birozdan keyin urinib ko'ring.");
+        return;
+      }
+      if (j.error === "telegram_not_configured") {
+        setErr("Telegram bot hali sozlanmagan. Administratorga murojaat qiling.");
+        return;
+      }
+      // Har doim "yuborildi" deb javob beramiz (enumeration himoyasi)
+      setStep("verify");
+      toast.info("Agar akkauntingiz Telegram'ga bog'langan bo'lsa, kod yuborildi.");
+    } catch (e) {
+      setErr("Tarmoq xatosi");
+    } finally { setBusy(false); }
+  };
+
+  const submit = async () => {
+    if (busy) return;
+    if (!code || !pw) { setErr("Kod va yangi parolni kiriting"); return; }
+    if (pw.length < 4) { setErr("Parol kamida 4 belgi"); return; }
+    setBusy(true); setErr("");
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: login.trim(), code: code.trim(), newPassword: pw }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = j.error === "invalid_or_expired" ? "Kod noto'g'ri yoki muddati tugagan"
+          : j.error === "too_many_attempts" ? "Urinishlar ko'p"
+          : j.error === "password_too_short" ? "Parol qisqa"
+          : j.error === "rate_limited" ? "Urinishlar ko'p, biroz kuting"
+          : "Xato";
+        setErr(msg);
+        return;
+      }
+      toast.success("Parol o'zgartirildi. Endi kirishingiz mumkin.");
+      onClose();
+    } catch (e) {
+      setErr("Tarmoq xatosi");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal t={t} title="Parolni tiklash" onClose={onClose}>
+      {step === "ask" ? (
+        <div style={{ display: "grid", gap: 12 }}>
+          <p style={{ fontSize: 13, color: t.sec, lineHeight: 1.5 }}>
+            Login yoki telefon raqamingizni kiriting. Agar akkauntingiz Telegram'ga bog'langan bo'lsa, sizga 6 raqamli kod yuboriladi.
+          </p>
+          <Input t={t} value={login} onChange={(e) => setLogin(e.target.value)} placeholder="Login yoki telefon" autoFocus />
+          {err && <div role="alert" style={{ background: `${t.danger}15`, color: t.danger, padding: 8, borderRadius: 6, fontSize: 12 }}>{err}</div>}
+          <Btn t={t} onClick={requestCode} disabled={busy}>{busy ? "..." : "Kod yuborish"}</Btn>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          <p style={{ fontSize: 13, color: t.sec, lineHeight: 1.5 }}>
+            Telegram botda kelgan 6 raqamli kodni va yangi parolingizni kiriting.
+          </p>
+          <Input t={t} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6 raqamli kod" inputMode="numeric" autoFocus />
+          <Input t={t} type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Yangi parol" />
+          {err && <div role="alert" style={{ background: `${t.danger}15`, color: t.danger, padding: 8, borderRadius: 6, fontSize: 12 }}>{err}</div>}
+          <Btn t={t} onClick={submit} disabled={busy}>{busy ? "..." : "Parolni saqlash"}</Btn>
+          <button type="button" onClick={() => setStep("ask")} style={{ background: "transparent", border: "none", color: t.sec, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>← Boshqa loginga</button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function TelegramLinkPanel({ t, user, setUser }) {
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const linked = Boolean(user.telegram_linked);
+
+  const startLink = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/me/telegram/start", { method: "POST" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (j.error === "telegram_not_configured") toast.warn("Telegram bot hali sozlanmagan. Administratorga murojaat qiling.");
+        else toast.error("Xato");
+        return;
+      }
+      setLink(j);
+    } finally { setBusy(false); }
+  };
+
+  const refresh = async () => {
+    const r = await fetch("/api/auth/me", { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.user) setUser(j.user);
+    }
+    setLink(null);
+  };
+
+  const unlink = async () => {
+    const ok = await confirm({
+      title: "Telegram bilan bog'lashni uzish",
+      message: "Endi xabarnomalar va parol tiklash kodlari kelmaydi.",
+      confirmText: "Uzish",
+      cancelText: "Bekor",
+      danger: true,
+    });
+    if (!ok) return;
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fetch("/api/me/telegram/unlink", { method: "POST" });
+      setUser({ ...user, telegram_linked: false });
+      toast.success("Uzildi");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Card t={t} style={{ marginBottom: 18 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>📨 Telegram bot</h3>
+      <p style={{ fontSize: 12, color: t.sec, marginBottom: 14, lineHeight: 1.5 }}>
+        Telegram'ga ulansangiz, parolni unutganda kod shu yerga keladi va muhim xabarnomalar kelib turadi. Bepul.
+      </p>
+      {linked ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Badge t={t} color={t.success}>✓ Bog'langan</Badge>
+          <Btn t={t} variant="danger" onClick={unlink} disabled={busy}>Bog'lashni uzish</Btn>
+        </div>
+      ) : link ? (
+        <div style={{ display: "grid", gap: 10 }}>
+          <p style={{ fontSize: 13, color: t.text }}>
+            Quyidagi havolaga o'ting va botda <code>/start</code> bosing. So'ng "Tekshirish" tugmasini bosing.
+          </p>
+          <a href={link.url} target="_blank" rel="noopener" style={{ background: "#229ED9", color: "#fff", padding: "10px 14px", borderRadius: 9, textDecoration: "none", fontSize: 13, fontWeight: 600, display: "inline-flex", gap: 8, alignItems: "center", width: "fit-content" }}>
+            📨 Telegram'da ochish
+          </a>
+          <div style={{ fontSize: 11, color: t.sec }}>Havola {link.ttlMin} daqiqada amal qiladi.</div>
+          <Btn t={t} onClick={refresh}>✓ Tekshirish</Btn>
+        </div>
+      ) : (
+        <Btn t={t} onClick={startLink} disabled={busy}>📨 Telegram bilan bog'lash</Btn>
+      )}
+    </Card>
+  );
+}
+
 function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lang, setLang }) {
   const [form, setForm] = useState({ full_name: user.full_name, emoji: user.emoji, phone: user.phone });
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "" });
@@ -2064,6 +2237,8 @@ function Settings({ t, T, user, setUser, operators, setOperators, dk, setDk, lan
           </div>
         </div>
       </Card>
+
+      <TelegramLinkPanel t={t} user={user} setUser={setUser} />
 
       <Card t={t} style={{ marginBottom: 18 }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🔒 {T("password")}</h3>

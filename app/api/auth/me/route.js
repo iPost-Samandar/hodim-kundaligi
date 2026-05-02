@@ -6,8 +6,11 @@ export async function GET() {
   if (!s) return Response.json({ user: null });
   const { data } = await supabaseAdmin
     .from("users")
-    .select("id, login, full_name, phone, emoji, role, is_active, lang, theme")
+    .select("id, login, full_name, phone, emoji, role, is_active, lang, theme, telegram_chat_id")
     .eq("id", s.sub)
     .single();
-  return Response.json({ user: data && data.is_active ? data : null });
+  if (!data || !data.is_active) return Response.json({ user: null });
+  // Frontend'ga faqat boolean ko'rsatamiz, chat_idning o'zini emas
+  const { telegram_chat_id, ...rest } = data;
+  return Response.json({ user: { ...rest, telegram_linked: Boolean(telegram_chat_id) } });
 }

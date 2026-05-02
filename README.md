@@ -81,6 +81,12 @@ Barcha protected route'lar `hk_session` cookie talab qiladi.
 | PATCH  | `/api/kpi`            | admin | KPI qoidalarini yangilash |
 | PATCH  | `/api/me/profile`     | auth  | O'z profilini yangilash |
 | PATCH  | `/api/me/password`    | auth  | O'z parolini o'zgartirish |
+| POST   | `/api/me/telegram/start`  | auth | Telegram bog'lash uchun deep link olish |
+| POST   | `/api/me/telegram/unlink` | auth | Telegram bog'lashni uzish |
+| POST   | `/api/auth/forgot-password` | hamma | Parol tiklash kodi yuborish (Telegram orqali) |
+| POST   | `/api/auth/reset-password`  | hamma | Kod va yangi parol bilan tiklash |
+| POST   | `/api/telegram/webhook`     | Telegram | Bot updatelarini qabul qilish (secret param bilan) |
+| GET    | `/api/audit`              | admin | Audit log yozuvlari |
 
 ## Xususiyatlar
 
@@ -97,14 +103,54 @@ Barcha protected route'lar `hk_session` cookie talab qiladi.
 - ✅ **Realtime**: announcements / messages / reports / complaints jadvallaridagi o'zgarishlar avtomatik yangilanadi (sahifani qayta yuklash shart emas). Yangi xabar — toast bildirishnoma.
 - ✅ **Oylik PDF hisobot**: Salary tabidagi 📄 PDF tugmasi. Tanlangan oydagi har operator uchun: ish kunlari, ishlar, sifat, kech qolish, summa.
 
-## Phase 3 — Keyingi seansda (sizdan kerak)
+## Telegram bot setup (parol tiklash + xabarnoma)
 
-- ⏳ **Web push**: VAPID kalitlari kerak. Yaratish:
-  ```bash
-  npx web-push generate-vapid-keys
-  ```
-  Hosil bo'lgan public key — `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, private — `VAPID_PRIVATE_KEY` env'ga.
-- ⏳ **SMS verification (Eskiz.uz)**: Eskiz.uz akkaunti, API token va `SENDER_ID` kerak. Parol tiklash flow uchun.
+**Nima uchun Telegram, SMS emas?** O'zbekistonda bepul SMS yo'q (Eskiz.uz, PlayMobile.uz — pulli). Telegram bot to'liq bepul, cheksiz va deyarli har bir operator allaqachon Telegram'dan foydalanadi.
+
+### Qadamlar
+
+**1. Botni yaratish (1 daqiqa)**
+
+1. Telegram'da [@BotFather](https://t.me/BotFather)'ni oching
+2. `/newbot` yuboring
+3. Bot nomini kiriting (masalan: `Hodim Kundaligi`)
+4. Username kiriting (masalan: `hodim_kundaligi_bot` — `_bot` bilan tugashi shart)
+5. Hosil bo'lgan tokenni saqlang (masalan: `7234567890:AAEx...`)
+
+**2. Vercel'ga env qo'shish**
+
+| Key | Value |
+|-----|-------|
+| `TELEGRAM_BOT_TOKEN` | BotFather'dan olingan token |
+| `TELEGRAM_BOT_USERNAME` | bot username (`@`siz, masalan: `hodim_kundaligi_bot`) |
+| `TELEGRAM_WEBHOOK_SECRET` | random string, masalan: `npm run gen:secret` (yoki `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+
+**3. Webhook'ni o'rnatish** — bir martalik amal:
+
+```bash
+# <BOT_TOKEN> va <DOMAIN> va <SECRET>'ni o'zinikilari bilan almashtiring
+curl "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://<DOMAIN>/api/telegram/webhook?secret=<SECRET>"
+```
+
+Misol:
+```bash
+curl "https://api.telegram.org/bot7234567890:AAEx.../setWebhook?url=https://hodim-kundaligi.vercel.app/api/telegram/webhook?secret=87e6dbc..."
+```
+
+Javob `{"ok":true,"result":true,"description":"Webhook was set"}` bo'lishi kerak.
+
+**Tekshirish:**
+```bash
+curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"
+```
+
+**4. Tugadi** — Endi:
+- Foydalanuvchi → Sozlamalar → 📨 Telegram bilan bog'lash → bot ochiladi → `/start` bosadi → bog'lanadi
+- Login sahifasida → "Parol unutdim?" → 6 raqamli kod Telegram'ga keladi → yangi parol o'rnatish
+
+### Web push (keyingi seansga)
+
+⏳ VAPID kalitlari kerak: `npx web-push generate-vapid-keys` → `NEXT_PUBLIC_VAPID_PUBLIC_KEY` va `VAPID_PRIVATE_KEY` env'lariga.
 
 ## Keyingi fazalar
 
