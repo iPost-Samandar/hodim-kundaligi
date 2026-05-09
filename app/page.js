@@ -6,6 +6,7 @@ import {
   ConfirmProvider, useConfirm,
   EmptyState, Skeleton, ErrorBoundary, useFocusTrap,
 } from "./lib/ui.jsx";
+import { calcLateFineFromTiers, findLateFineTier, DEFAULT_LATE_FINE_TIERS } from "./lib/late-fine.js";
 
 // ═══ I18N (O'zbek / Rus) ═══
 const TRANSLATIONS = {
@@ -405,7 +406,18 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [feedbackList, setFeedbackList] = useState([]);
   const [penalties, setPenalties] = useState([]);
-  const [kpiRules, setKpiRules] = useState({ lateFine: 1000, taskRate: 5000, qualityCoef: 1 });
+  const [kpiRules, setKpiRules] = useState({
+    lateFine: 1000,
+    taskRate: 5000,
+    qualityCoef: 1,
+    lateFineTiers: [
+      { from: 0, to: 10, percent: 10, amount: 15000 },
+      { from: 10, to: 30, percent: 20, amount: 30000 },
+      { from: 30, to: 60, percent: 30, amount: 60000 },
+      { from: 60, to: 90, percent: 40, amount: 100000 },
+      { from: 90, to: null, percent: 100, amount: 150000 },
+    ],
+  });
 
   // ═══ Boshlang'ich yuklash: sessiya tekshiruvi + ma'lumotlar ═══
   useEffect(() => {
@@ -625,7 +637,12 @@ function App() {
       await fetch("/api/kpi", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lateFine: v.lateFine, taskRate: v.taskRate, qualityCoef: v.qualityCoef }),
+        body: JSON.stringify({
+          lateFine: v.lateFine,
+          taskRate: v.taskRate,
+          qualityCoef: v.qualityCoef,
+          lateFineTiers: v.lateFineTiers,
+        }),
       });
     } catch (e) { console.error(e); toast.error("Saqlashda xato"); }
   }, [toast]);
@@ -668,7 +685,7 @@ function App() {
 
   const calcDailyAmount = (report) => {
     const base = report.tasks_completed * kpiRules.taskRate * (report.quality_score / 100) * kpiRules.qualityCoef;
-    const fine = report.late_minutes * kpiRules.lateFine;
+    const fine = calcLateFineFromTiers(report.late_minutes, kpiRules.lateFineTiers, kpiRules.lateFine);
     return Math.max(0, base - fine);
   };
 
@@ -1472,7 +1489,7 @@ function Dashboard({ t, T, user, isAdmin, operators, reports, complaints, feedba
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
             <div><div style={{ fontSize: 12, color: t.sec }}>{T("tasksCompleted")}</div><div style={{ fontSize: 18, fontWeight: 700 }}>{myReport.tasks_completed}</div></div>
             <div><div style={{ fontSize: 12, color: t.sec }}>{T("lateMinutes")}</div><div style={{ fontSize: 18, fontWeight: 700, color: myReport.late_minutes > 0 ? t.danger : t.success }}>{myReport.late_minutes}</div></div>
-            <div><div style={{ fontSize: 12, color: t.sec }}>{T("penalties")}</div><div style={{ fontSize: 18, fontWeight: 700, color: t.danger }}>-{fmt(myReport.late_minutes * kpiRules.lateFine)}</div></div>
+            <div><div style={{ fontSize: 12, color: t.sec }}>{T("penalties")}</div><div style={{ fontSize: 18, fontWeight: 700, color: t.danger }}>-{fmt(calcLateFineFromTiers(myReport.late_minutes, kpiRules.lateFineTiers, kpiRules.lateFine))}</div></div>
           </div>
         </Card>
       )}
@@ -2451,7 +2468,12 @@ function AuditLog({ t, T }) {
 }
 
 function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
-  const [form, setForm] = useState(kpiRules);
+  const [form, setForm] = useState({
+    ...kpiRules,
+    lateFineTiers: Array.isArray(kpiRules.lateFineTiers) && kpiRules.lateFineTiers.length
+      ? kpiRules.lateFineTiers.map(x => ({ ...x }))
+      : DEFAULT_LATE_FINE_TIERS.map(x => ({ ...x })),
+  });
   const [saved, setSaved] = useState(false);
   const toast = useToast();
 
@@ -2460,17 +2482,56 @@ function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
       toast.warn("To'g'ri raqamlarni kiriting");
       return;
     }
+    // Validate tiers: each must have valid from / amount
+    for (const tier of form.lateFineTiers) {
+      if (!Number.isFinite(+tier.from) || !Number.isFinite(+tier.amount)) {
+        toast.warn("Tier ma'lumotlari noto'g'ri");
+        return;
+      }
+    }
     setKpiRules(form);
     setSaved(true);
     toast.success("KPI qoidalari saqlandi");
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const updateTier = (i, field, value) => {
+    const next = form.lateFineTiers.map((tier, idx) =>
+      idx === i ? { ...tier, [field]: value === "" ? null : (field === "to" && value === "" ? null : Number(value) || 0) } : tier
+    );
+    setForm({ ...form, lateFineTiers: next });
+  };
+
+  const addTier = () => {
+    const last = form.lateFineTiers[form.lateFineTiers.length - 1];
+    const lastTo = last && last.to != null ? Number(last.to) : 0;
+    setForm({
+      ...form,
+      lateFineTiers: [
+        ...form.lateFineTiers,
+        { from: lastTo, to: lastTo + 30, percent: 0, amount: 0 },
+      ].sort((a, b) => {
+        if (a.to == null) return 1;
+        if (b.to == null) return -1;
+        return Number(a.to) - Number(b.to);
+      }),
+    });
+  };
+
+  const removeTier = (i) => {
+    setForm({ ...form, lateFineTiers: form.lateFineTiers.filter((_, idx) => idx !== i) });
+  };
+
+  const resetTiers = () => {
+    setForm({ ...form, lateFineTiers: DEFAULT_LATE_FINE_TIERS.map(x => ({ ...x })) });
+    toast.info("Standart turi tiklandi");
+  };
+
   return (
-    <div style={{ maxWidth: 600 }}>
+    <div style={{ display: "grid", gap: 18, maxWidth: 720 }}>
       <Card t={t}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 18 }}>🧮 {T("kpiFormula")}</h3>
-        <div style={{ display: "grid", gap: 14 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, letterSpacing: "-0.01em" }}>🧮 {T("kpiFormula")}</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <div>
             <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("taskRate")}</label>
             <Input t={t} type="number" value={form.taskRate} onChange={e => setForm({ ...form, taskRate: +e.target.value })} />
@@ -2479,17 +2540,95 @@ function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
             <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("qualityCoef")}</label>
             <Input t={t} type="number" step="0.1" value={form.qualityCoef} onChange={e => setForm({ ...form, qualityCoef: +e.target.value })} />
           </div>
-          <div>
-            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("lateFine")}</label>
-            <Input t={t} type="number" value={form.lateFine} onChange={e => setForm({ ...form, lateFine: +e.target.value })} />
-          </div>
-          <div style={{ padding: 14, background: t.inputBg, borderRadius: 8, fontSize: 12, color: t.sec, lineHeight: 1.6 }}>
-            <strong>Formula:</strong><br/>
-            Kunlik summa = (ish_soni × {form.taskRate} × sifat% × {form.qualityCoef}) - (kech_qolgan_daq × {form.lateFine})
-          </div>
-          <Btn t={t} onClick={save}>✓ {saved ? T("save") + "!" : T("saveRules")}</Btn>
         </div>
       </Card>
+
+      <Card t={t}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", margin: 0 }}>⏱ Kechikish bo'yicha shtraf turi</h3>
+          <button
+            onClick={resetTiers}
+            style={{ background: "transparent", border: "none", color: t.sec, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
+          >
+            Standart tikla
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: t.sec, marginBottom: 14, lineHeight: 1.5 }}>
+          Operator kech qolganda quyidagi diapazon bo'yicha shtraf qo'llanadi.
+        </p>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: t.inputBg }}>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: t.sec, fontSize: 11.5, letterSpacing: "0.04em", textTransform: "uppercase", borderBottom: `1px solid ${t.border}` }}>Diapazon (min)</th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: t.sec, fontSize: 11.5, letterSpacing: "0.04em", textTransform: "uppercase", borderBottom: `1px solid ${t.border}` }}>Foiz</th>
+                <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, color: t.sec, fontSize: 11.5, letterSpacing: "0.04em", textTransform: "uppercase", borderBottom: `1px solid ${t.border}` }}>Jarima (so'm)</th>
+                <th style={{ width: 36, borderBottom: `1px solid ${t.border}` }} />
+              </tr>
+            </thead>
+            <tbody>
+              {form.lateFineTiers.map((tier, i) => {
+                const isLast = i === form.lateFineTiers.length - 1;
+                return (
+                  <tr key={i} style={{ background: i % 2 ? "transparent" : `${t.inputBg}80` }}>
+                    <td style={{ padding: 8, borderBottom: `1px solid ${t.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Input t={t} type="number" value={tier.from ?? 0} onChange={e => updateTier(i, "from", e.target.value)} style={{ width: 70, padding: "8px 10px", fontSize: 12.5 }} />
+                        <span style={{ color: t.mut }}>—</span>
+                        <Input t={t} type="number" placeholder={isLast ? "∞" : ""} value={tier.to == null ? "" : tier.to} onChange={e => updateTier(i, "to", e.target.value)} style={{ width: 70, padding: "8px 10px", fontSize: 12.5 }} />
+                      </div>
+                    </td>
+                    <td style={{ padding: 8, borderBottom: `1px solid ${t.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <Input t={t} type="number" value={tier.percent ?? ""} onChange={e => updateTier(i, "percent", e.target.value)} style={{ width: 70, padding: "8px 10px", fontSize: 12.5 }} />
+                        <span style={{ color: t.mut, fontSize: 13 }}>%</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: 8, textAlign: "right", borderBottom: `1px solid ${t.border}` }}>
+                      <Input t={t} type="number" value={tier.amount ?? 0} onChange={e => updateTier(i, "amount", e.target.value)} style={{ width: 120, padding: "8px 10px", fontSize: 12.5, textAlign: "right" }} />
+                    </td>
+                    <td style={{ padding: 8, borderBottom: `1px solid ${t.border}`, textAlign: "center" }}>
+                      <button
+                        onClick={() => removeTier(i)}
+                        aria-label="O'chirish"
+                        className="hk-icon-btn"
+                        style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: `1px solid ${t.border}`, color: t.mut, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Icon name="trash" size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <Btn t={t} variant="ghost" size="sm" icon="plus" onClick={addTier} style={{ marginTop: 12 }}>Yangi tur qo'shish</Btn>
+      </Card>
+
+      <Card t={t}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>📊 Misol</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
+          {[5, 15, 45, 75, 120].map((m) => {
+            const fine = calcLateFineFromTiers(m, form.lateFineTiers, form.lateFine);
+            return (
+              <div key={m} style={{ padding: 12, background: t.inputBg, borderRadius: 10, border: `1px solid ${t.border}` }}>
+                <div style={{ fontSize: 11, color: t.sec, marginBottom: 4 }}>{m} min kech</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.danger }}>-{fmt(fine)}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 14, padding: 14, background: t.inputBg, borderRadius: 10, fontSize: 12, color: t.sec, lineHeight: 1.6 }}>
+          <strong>Formula:</strong><br/>
+          Kunlik summa = (ish_soni × {form.taskRate} × sifat% × {form.qualityCoef}) − tier_jarima
+        </div>
+      </Card>
+
+      <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "flex-end" }}>
+        <Btn t={t} variant="primary" size="lg" onClick={save} icon="check">{saved ? T("save") + "!" : T("saveRules")}</Btn>
+      </div>
     </div>
   );
 }

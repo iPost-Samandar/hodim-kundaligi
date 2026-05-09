@@ -99,8 +99,23 @@ CREATE TABLE IF NOT EXISTS kpi_rules (
   late_fine NUMERIC DEFAULT 1000,
   task_rate NUMERIC DEFAULT 5000,
   quality_coef NUMERIC DEFAULT 1,
+  late_fine_tiers JSONB DEFAULT '[
+    {"from":0,"to":10,"percent":10,"amount":15000},
+    {"from":10,"to":30,"percent":20,"amount":30000},
+    {"from":30,"to":60,"percent":30,"amount":60000},
+    {"from":60,"to":90,"percent":40,"amount":100000},
+    {"from":90,"to":null,"percent":100,"amount":150000}
+  ]'::jsonb,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+ALTER TABLE kpi_rules ADD COLUMN IF NOT EXISTS late_fine_tiers JSONB;
+UPDATE kpi_rules SET late_fine_tiers = '[
+  {"from":0,"to":10,"percent":10,"amount":15000},
+  {"from":10,"to":30,"percent":20,"amount":30000},
+  {"from":30,"to":60,"percent":30,"amount":60000},
+  {"from":60,"to":90,"percent":40,"amount":100000},
+  {"from":90,"to":null,"percent":100,"amount":150000}
+]'::jsonb WHERE late_fine_tiers IS NULL;
 
 -- 9. Shtraflar
 CREATE TABLE IF NOT EXISTS penalties (
