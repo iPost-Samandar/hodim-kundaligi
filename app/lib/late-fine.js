@@ -1,4 +1,24 @@
-// Tier-based late fine calculator. Used both server-side and client-side.
+// Tier-based late fine + plan-aware task earnings calculator.
+// Used both server-side and client-side.
+
+/**
+ * Calculate task earnings for a given count of completed tasks (e.g. calls).
+ * - First `plan` tasks earn `rate` so'm each
+ * - Tasks above `plan` earn `overflowRate` so'm each
+ *
+ * Example: 80 tasks, plan=60, rate=897, overflowRate=300
+ *   = 60 × 897 + 20 × 300 = 53,820 + 6,000 = 59,820 so'm
+ */
+export function calcTaskEarnings(tasks, rate, overflowRate, plan) {
+  const t = Number(tasks) || 0;
+  if (t <= 0) return 0;
+  const r = Number(rate) || 0;
+  const oR = Number(overflowRate) || 0;
+  const p = Number(plan) || 0;
+  if (p <= 0 || t <= p) return t * r;
+  return p * r + (t - p) * oR;
+}
+
 
 export const DEFAULT_LATE_FINE_TIERS = [
   { from: 0, to: 10, percent: 10, amount: 15000 },

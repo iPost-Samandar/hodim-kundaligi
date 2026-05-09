@@ -97,18 +97,17 @@ CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules(user_id, date);
 CREATE TABLE IF NOT EXISTS kpi_rules (
   id INTEGER PRIMARY KEY DEFAULT 1,
   late_fine NUMERIC DEFAULT 1000,
-  task_rate NUMERIC DEFAULT 5000,
+  task_rate NUMERIC DEFAULT 897,
+  task_rate_overflow NUMERIC DEFAULT 300,
+  task_plan_per_day INTEGER DEFAULT 60,
   quality_coef NUMERIC DEFAULT 1,
-  late_fine_tiers JSONB DEFAULT '[
-    {"from":0,"to":10,"percent":10,"amount":15000},
-    {"from":10,"to":30,"percent":20,"amount":30000},
-    {"from":30,"to":60,"percent":30,"amount":60000},
-    {"from":60,"to":90,"percent":40,"amount":100000},
-    {"from":90,"to":null,"percent":100,"amount":150000}
-  ]'::jsonb,
+  late_fine_tiers JSONB,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE kpi_rules ADD COLUMN IF NOT EXISTS late_fine_tiers JSONB;
+ALTER TABLE kpi_rules ADD COLUMN IF NOT EXISTS task_rate_overflow NUMERIC DEFAULT 300;
+ALTER TABLE kpi_rules ADD COLUMN IF NOT EXISTS task_plan_per_day INTEGER DEFAULT 60;
+
 UPDATE kpi_rules SET late_fine_tiers = '[
   {"from":0,"to":10,"percent":10,"amount":15000},
   {"from":10,"to":30,"percent":20,"amount":30000},

@@ -31,7 +31,9 @@ export async function GET() {
   return ok({
     kpi: {
       lateFine: Number(data?.late_fine ?? 1000),
-      taskRate: Number(data?.task_rate ?? 5000),
+      taskRate: Number(data?.task_rate ?? 897),
+      taskRateOverflow: Number(data?.task_rate_overflow ?? 300),
+      taskPlanPerDay: Number(data?.task_plan_per_day ?? 60),
       qualityCoef: Number(data?.quality_coef ?? 1),
       lateFineTiers: tiers,
     },
@@ -45,14 +47,22 @@ export async function PATCH(req) {
   try { body = await req.json(); } catch { return bad("invalid JSON"); }
   const lateFine = Number(body?.lateFine);
   const taskRate = Number(body?.taskRate);
+  const taskRateOverflow = Number(body?.taskRateOverflow ?? 300);
+  const taskPlanPerDay = Number(body?.taskPlanPerDay ?? 60);
   const qualityCoef = Number(body?.qualityCoef);
-  if (!Number.isFinite(lateFine) || !Number.isFinite(taskRate) || !Number.isFinite(qualityCoef)) {
+  if (!Number.isFinite(lateFine) || !Number.isFinite(taskRate) || !Number.isFinite(qualityCoef)
+      || !Number.isFinite(taskRateOverflow) || !Number.isFinite(taskPlanPerDay)) {
     return bad("invalid_numbers");
   }
   const tiers = normalizeTiers(body?.lateFineTiers);
 
   const update = {
-    id: 1, late_fine: lateFine, task_rate: taskRate, quality_coef: qualityCoef,
+    id: 1,
+    late_fine: lateFine,
+    task_rate: taskRate,
+    task_rate_overflow: taskRateOverflow,
+    task_plan_per_day: taskPlanPerDay,
+    quality_coef: qualityCoef,
     updated_at: new Date().toISOString(),
   };
   if (tiers) update.late_fine_tiers = tiers;
@@ -60,7 +70,7 @@ export async function PATCH(req) {
   const { error } = await supabaseAdmin.from("kpi_rules").upsert(update);
   if (error) return bad("server_error", 500);
   await audit(req, r.user, "kpi_update", "kpi_rules", "1", {
-    lateFine, taskRate, qualityCoef, tiersCount: tiers?.length || null,
+    lateFine, taskRate, taskRateOverflow, taskPlanPerDay, qualityCoef, tiersCount: tiers?.length || null,
   });
   return ok({ ok: true });
 }

@@ -6,7 +6,7 @@ import {
   ConfirmProvider, useConfirm,
   EmptyState, Skeleton, ErrorBoundary, useFocusTrap,
 } from "./lib/ui.jsx";
-import { calcLateFineFromTiers, findLateFineTier, DEFAULT_LATE_FINE_TIERS } from "./lib/late-fine.js";
+import { calcLateFineFromTiers, findLateFineTier, DEFAULT_LATE_FINE_TIERS, calcTaskEarnings } from "./lib/late-fine.js";
 
 // ═══ I18N (O'zbek / Rus) ═══
 const TRANSLATIONS = {
@@ -408,7 +408,9 @@ function App() {
   const [penalties, setPenalties] = useState([]);
   const [kpiRules, setKpiRules] = useState({
     lateFine: 1000,
-    taskRate: 5000,
+    taskRate: 897,
+    taskRateOverflow: 300,
+    taskPlanPerDay: 60,
     qualityCoef: 1,
     lateFineTiers: [
       { from: 0, to: 10, percent: 10, amount: 15000 },
@@ -640,6 +642,8 @@ function App() {
         body: JSON.stringify({
           lateFine: v.lateFine,
           taskRate: v.taskRate,
+          taskRateOverflow: v.taskRateOverflow,
+          taskPlanPerDay: v.taskPlanPerDay,
           qualityCoef: v.qualityCoef,
           lateFineTiers: v.lateFineTiers,
         }),
@@ -684,7 +688,13 @@ function App() {
   };
 
   const calcDailyAmount = (report) => {
-    const base = report.tasks_completed * kpiRules.taskRate * (report.quality_score / 100) * kpiRules.qualityCoef;
+    const earned = calcTaskEarnings(
+      report.tasks_completed,
+      kpiRules.taskRate,
+      kpiRules.taskRateOverflow,
+      kpiRules.taskPlanPerDay,
+    );
+    const base = earned * (report.quality_score / 100) * kpiRules.qualityCoef;
     const fine = calcLateFineFromTiers(report.late_minutes, kpiRules.lateFineTiers, kpiRules.lateFine);
     return Math.max(0, base - fine);
   };
@@ -2530,16 +2540,27 @@ function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
   return (
     <div style={{ display: "grid", gap: 18, maxWidth: 720 }}>
       <Card t={t}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, letterSpacing: "-0.01em" }}>🧮 {T("kpiFormula")}</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, letterSpacing: "-0.01em" }}>🧮 Plan va stavka</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("taskRate")}</label>
+            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>Kunlik plan (qo'ng'iroq)</label>
+            <Input t={t} type="number" value={form.taskPlanPerDay} onChange={e => setForm({ ...form, taskPlanPerDay: +e.target.value })} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>Stavka (so'm/qo'ng'iroq, plan ichida)</label>
             <Input t={t} type="number" value={form.taskRate} onChange={e => setForm({ ...form, taskRate: +e.target.value })} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("qualityCoef")}</label>
-            <Input t={t} type="number" step="0.1" value={form.qualityCoef} onChange={e => setForm({ ...form, qualityCoef: +e.target.value })} />
+            <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>Stavka (plan ortig'i)</label>
+            <Input t={t} type="number" value={form.taskRateOverflow} onChange={e => setForm({ ...form, taskRateOverflow: +e.target.value })} />
           </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label style={{ fontSize: 12, color: t.sec, display: "block", marginBottom: 6 }}>{T("qualityCoef")}</label>
+          <Input t={t} type="number" step="0.1" value={form.qualityCoef} onChange={e => setForm({ ...form, qualityCoef: +e.target.value })} style={{ maxWidth: 220 }} />
+        </div>
+        <div style={{ marginTop: 12, padding: 12, background: t.inputBg, borderRadius: 10, fontSize: 12, color: t.sec, lineHeight: 1.6 }}>
+          <strong>Misol:</strong> 80 ta qo'ng'iroq → {form.taskPlanPerDay} × {fmt(form.taskRate)} + {Math.max(0, 80 - form.taskPlanPerDay)} × {fmt(form.taskRateOverflow)} = <strong style={{ color: t.success }}>{fmt(calcTaskEarnings(80, form.taskRate, form.taskRateOverflow, form.taskPlanPerDay))} so'm</strong>
         </div>
       </Card>
 
@@ -2626,10 +2647,74 @@ function KpiRulesPanel({ t, T, kpiRules, setKpiRules }) {
         </div>
       </Card>
 
+      <SyncAttendanceCard t={t} />
+
       <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "flex-end" }}>
         <Btn t={t} variant="primary" size="lg" onClick={save} icon="check">{saved ? T("save") + "!" : T("saveRules")}</Btn>
       </div>
     </div>
+  );
+}
+
+function SyncAttendanceCard({ t }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const toast = useToast();
+
+  const sync = async (dryRun = false) => {
+    if (busy) return;
+    setBusy(true); setResult(null);
+    try {
+      const url = `/api/sync/attendance/trigger${dryRun ? "?dryRun=1" : ""}`;
+      const res = await fetch(url, { method: "POST" });
+      const j = await res.json().catch(() => ({}));
+      setResult(j);
+      if (res.ok) {
+        toast.success(`Sinx tugadi: ${j.matched ?? 0} ta yozuv (yaratildi: ${j.inserted ?? 0}, yangilandi: ${j.updated ?? 0})`);
+      } else {
+        toast.error(j.error || "Sinx xato");
+      }
+    } catch (e) {
+      toast.error(String(e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card t={t}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", margin: 0 }}>🔄 Davomat avto-sinxronizatsiyasi</h3>
+        <Badge t={t} color={t.success} dot>Har kun 23:00</Badge>
+      </div>
+      <p style={{ fontSize: 12, color: t.sec, marginBottom: 14, lineHeight: 1.5 }}>
+        Tizim har kuni 23:00 (Tashkent) Google Sheets'dan davomatni yuklab oladi va kunlik hisobotlarga kelgan/ketgan vaqtni va kechikishni yozadi. Hoziroq ishga tushirishingiz ham mumkin.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Btn t={t} variant="primary" onClick={() => sync(false)} disabled={busy} icon={busy ? undefined : "download"}>
+          {busy ? "Sinx qilinmoqda..." : "Hozir sinx qil"}
+        </Btn>
+        <Btn t={t} variant="ghost" onClick={() => sync(true)} disabled={busy}>Tekshirish (yozmasdan)</Btn>
+      </div>
+      {result && (
+        <div style={{ marginTop: 12, padding: 12, background: t.inputBg, borderRadius: 10, fontSize: 12, color: t.sec, lineHeight: 1.7 }}>
+          <div><strong>O'qildi:</strong> {result.parsed ?? 0} ta CSV qator</div>
+          <div><strong>Operatorga moslandi:</strong> {result.matched ?? 0} ta</div>
+          {result.dryRun ? (
+            <div><strong>Sinov rejimi:</strong> hech narsa yozilmadi</div>
+          ) : (
+            <div><strong>Yaratildi:</strong> {result.inserted ?? 0} · <strong>Yangilandi:</strong> {result.updated ?? 0}</div>
+          )}
+          {Array.isArray(result.unmatched) && result.unmatched.length > 0 && (
+            <details style={{ marginTop: 6 }}>
+              <summary style={{ cursor: "pointer", color: t.warning }}>Mos kelmagan {result.unmatched.length} ta nom</summary>
+              <ul style={{ margin: "6px 0 0 16px" }}>{result.unmatched.map((n, i) => <li key={i}>{n}</li>)}</ul>
+            </details>
+          )}
+          {result.error && <div style={{ color: t.danger, marginTop: 4 }}>Xato: {result.error}</div>}
+        </div>
+      )}
+    </Card>
   );
 }
 
