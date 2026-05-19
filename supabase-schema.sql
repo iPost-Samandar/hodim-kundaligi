@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS reports (
   left_at TEXT DEFAULT '18:00',
   late_minutes INTEGER DEFAULT 0,
   tasks_completed INTEGER DEFAULT 0,
-  quality_score INTEGER DEFAULT 90,
+  quality_score INTEGER,
   notes TEXT DEFAULT '',
   daily_amount NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()

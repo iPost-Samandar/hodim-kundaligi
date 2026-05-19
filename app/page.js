@@ -694,7 +694,9 @@ function App() {
       kpiRules.taskRateOverflow,
       kpiRules.taskPlanPerDay,
     );
-    const base = earned * (report.quality_score / 100) * kpiRules.qualityCoef;
+    // quality_score NULL means not yet evaluated by kotib.ai → don't penalize
+    const qFactor = report.quality_score == null ? 1 : (report.quality_score / 100);
+    const base = earned * qFactor * kpiRules.qualityCoef;
     const fine = calcLateFineFromTiers(report.late_minutes, kpiRules.lateFineTiers, kpiRules.lateFine);
     return Math.max(0, base - fine);
   };
@@ -1621,7 +1623,7 @@ function Operators({ t, T, operators, setOperators }) {
 function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calcDailyAmount, schedules }) {
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ user_id: operators[0]?.id || "", date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: 90, notes: "" });
+  const [form, setForm] = useState({ user_id: operators[0]?.id || "", date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: null, notes: "" });
   const [filterDate, setFilterDate] = useState("");
 
   const visible = isAdmin
@@ -1652,7 +1654,7 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
   };
 
   const openAdd = () => {
-    const initForm = { user_id: operators[0]?.id, date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: 90, notes: "" };
+    const initForm = { user_id: operators[0]?.id, date: today(), arrived_at: "09:00", left_at: "18:00", late_minutes: 0, tasks_completed: 0, quality_score: null, notes: "" };
     const scheduledStart = getScheduledStart(initForm.user_id, initForm.date);
     const late = calcLateMinutes(scheduledStart, initForm.arrived_at);
     setForm({ ...initForm, late_minutes: late, _scheduledStart: scheduledStart });
@@ -1715,7 +1717,7 @@ function DailyReport({ t, T, isAdmin, user, operators, reports, setReports, calc
                   <td style={{ padding: 12, textAlign: "center" }}>{r.left_at}</td>
                   <td style={{ padding: 12, textAlign: "center", color: r.late_minutes > 0 ? t.danger : t.success, fontWeight: 600 }}>{r.late_minutes > 0 ? `+${r.late_minutes}` : "0"}</td>
                   <td style={{ padding: 12, textAlign: "center", fontWeight: 600 }}>{r.tasks_completed}</td>
-                  <td style={{ padding: 12, textAlign: "center" }}><Badge t={t} color={r.quality_score >= 90 ? t.success : r.quality_score >= 70 ? t.warning : t.danger}>{r.quality_score}%</Badge></td>
+                  <td style={{ padding: 12, textAlign: "center" }}>{r.quality_score == null ? <Badge t={t} color={t.mut}>—</Badge> : <Badge t={t} color={r.quality_score >= 90 ? t.success : r.quality_score >= 70 ? t.warning : t.danger}>{r.quality_score}%</Badge>}</td>
                   <td style={{ padding: 12, textAlign: "right", fontWeight: 600, color: t.success }}>{fmt(calcDailyAmount(r))}</td>
                   {isAdmin && <td style={{ padding: 12, textAlign: "right" }}>
                     <div style={{ display: "inline-flex", gap: 5 }}>

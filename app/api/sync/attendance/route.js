@@ -223,9 +223,9 @@ async function run(req) {
         ...p,
         id: newId,
         tasks_completed: 0,
-        quality_score: 90,
+        quality_score: null, // kotib.ai dan keladi
         notes: "",
-        daily_amount: -p.late_minutes * lateFine, // tier asosida frontend qayta hisoblaydi
+        daily_amount: -p.late_minutes * lateFine,
       });
       if (error) ops.errors.push(error.message);
       else ops.inserted++;
