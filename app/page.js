@@ -687,14 +687,15 @@ function App() {
     setUser(null);
   };
 
+  // Yangi model (May 2026): kunlik ish haqi oldindan hisoblanib reports.daily_amount'da saqlanadi.
+  //   Kunlik = Keldi-ketdi (40 000 − kechikish shtrafi)
+  //          + Qilgan ish (60 tagacha 933.33 so'm, ortig'i 300 so'm)
+  //          + Ish sifati (64 000 − kotib.ai kunlik sifat shtrafi)
+  // Shuning uchun bu yerda saqlangan qiymatni qaytaramiz (qayta hisoblamaymiz).
   const calcDailyAmount = (report) => {
-    const earned = calcTaskEarnings(
-      report.tasks_completed,
-      kpiRules.taskRate,
-      kpiRules.taskRateOverflow,
-      kpiRules.taskPlanPerDay,
-    );
-    // quality_score NULL means not yet evaluated by kotib.ai → don't penalize
+    if (report && report.daily_amount != null) return Math.max(0, Number(report.daily_amount) || 0);
+    // Fallback (eski model) — daily_amount yo'q bo'lsa
+    const earned = calcTaskEarnings(report.tasks_completed, kpiRules.taskRate, kpiRules.taskRateOverflow, kpiRules.taskPlanPerDay);
     const qFactor = report.quality_score == null ? 1 : (report.quality_score / 100);
     const base = earned * qFactor * kpiRules.qualityCoef;
     const fine = calcLateFineFromTiers(report.late_minutes, kpiRules.lateFineTiers, kpiRules.lateFine);
